@@ -1,0 +1,21 @@
+app_name: vehicle-license-plate-system
+vehicle_detector:
+  model_path: weights/vehicle_yolo.pt
+  confidence: 0.35
+  labels:
+    - car
+    - bus
+    - truck
+    - motorcycle
+plate_detector:
+  model_path: weights/plate_yolo.pt
+  confidence: 0.25
+  labels:
+    - plate
+ocr:
+  language: ch
+  use_angle_cls: false
+output:
+  directory: outputs
+  save_images: true
+  save_video: true

@@ -1,0 +1,94 @@
+from car_system.config import AppConfig, DetectorConfig, OcrConfig, OutputConfig
+from car_system.runtime import build_runtime
+
+
+def test_build_runtime_returns_vehicle_and_plate_detectors() -> None:
+    config = AppConfig(
+        app_name="test-app",
+        vehicle_detector=DetectorConfig(
+            model_path="weights/vehicle.pt",
+            confidence=0.25,
+            labels=["car", "truck"],
+        ),
+        plate_detector=DetectorConfig(
+            model_path="weights/plate.pt",
+            confidence=0.30,
+            labels=["plate"],
+        ),
+        ocr=OcrConfig(language="en", use_angle_cls=False),
+        output=OutputConfig(directory="outputs", save_images=True, save_video=True),
+    )
+
+    vehicle_detector, plate_detector, ocr = build_runtime(config)
+
+    assert vehicle_detector.__class__.__name__ == "YoloDetector"
+    assert plate_detector.__class__.__name__ == "YoloDetector"
+    assert ocr.__class__.__name__ == "PaddlePlateOCR"
+
+
+def test_build_runtime_passes_detector_device_settings() -> None:
+    config = AppConfig(
+        app_name="test-app",
+        vehicle_detector=DetectorConfig(
+            model_path="weights/vehicle.pt",
+            confidence=0.25,
+            labels=["car", "truck"],
+            device="cpu",
+        ),
+        plate_detector=DetectorConfig(
+            model_path="weights/plate.pt",
+            confidence=0.30,
+            labels=["plate"],
+            device="cpu",
+        ),
+        ocr=OcrConfig(language="en", use_angle_cls=False),
+        output=OutputConfig(directory="outputs", save_images=True, save_video=True),
+    )
+
+    vehicle_detector, plate_detector, _ = build_runtime(config)
+
+    assert vehicle_detector.device == "cpu"
+    assert plate_detector.device == "cpu"
+
+
+def test_build_runtime_passes_specialized_ocr_settings(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    class FakePaddlePlateOCR:
+        def __init__(self, **kwargs):
+            captured["kwargs"] = kwargs
+
+    monkeypatch.setattr("car_system.runtime.PaddlePlateOCR", FakePaddlePlateOCR)
+
+    config = AppConfig(
+        app_name="test-app",
+        vehicle_detector=DetectorConfig(
+            model_path="weights/vehicle.pt",
+            confidence=0.25,
+            labels=["car", "truck"],
+        ),
+        plate_detector=DetectorConfig(
+            model_path="weights/plate.pt",
+            confidence=0.30,
+            labels=["plate"],
+        ),
+        ocr=OcrConfig(
+            language="ch",
+            use_angle_cls=False,
+            mode="specialized",
+            model_dir="weights/plate_rec/inference",
+            character_dict_path="weights/plate_rec/dicts/plate_dict.txt",
+        ),
+        output=OutputConfig(directory="outputs", save_images=True, save_video=True),
+    )
+
+    build_runtime(config)
+
+    assert captured["kwargs"] == {
+        "language": "ch",
+        "use_angle_cls": False,
+        "mode": "specialized",
+        "model_dir": "weights/plate_rec/inference",
+        "character_dict_path": "weights/plate_rec/dicts/plate_dict.txt",
+        "min_confidence": 0.0,
+    }

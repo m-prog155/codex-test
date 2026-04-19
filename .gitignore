@@ -1,0 +1,55 @@
+# Python caches
+__pycache__/
+.pytest_cache/
+*.pyc
+*.pyo
+
+# Virtual environments and local env files
+.venv/
+venv/
+.env
+.env.*
+
+# Training artifacts and model weights
+weights/
+runs/
+*.pt
+*.pth
+*.onnx
+*.pdparams
+*.pdopt
+
+# Generated outputs
+outputs/
+tmp_task1_partial/
+tmp_task1_review/
+*.log
+
+# Local datasets and archives
+data/processed/
+*.tar
+*.tar.gz
+*.zip
+*.part00
+*.part01
+*.part02
+*.part03
+*.part04
+*.part05
+*.part06
+*.part07
+*.part08
+*.part09
+
+# Thesis and preview binaries
+docs/**/*.docx
+docs/**/*.odt
+docs/**/*.pdf
+docs/**/*.png
+docs/**/*.jpg
+docs/**/*.jpeg
+docs/thesis-draft-test-unzip/
+
+# OS/editor noise
+Thumbs.db
+.DS_Store

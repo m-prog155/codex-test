@@ -1,0 +1,29 @@
+app_name: vehicle-license-plate-system-local-specialized-ocr-control
+vehicle_detector:
+  model_path: weights/vehicle_yolo.pt
+  confidence: 0.35
+  labels:
+    - car
+    - bus
+    - truck
+    - motorcycle
+plate_detector:
+  model_path: weights/plate_yolo.pt
+  confidence: 0.25
+  labels:
+    - plate
+ocr:
+  language: ch
+  use_angle_cls: false
+  mode: specialized
+  model_dir: outputs/plate_ocr_runs/plate_specialized/inference
+  character_dict_path: outputs/plate_ocr_dataset/dicts/plate_dict.txt
+  min_confidence: 0.93
+  enable_rectification: false
+  rectification_mode: disabled
+  crop_pad_x_ratio: 0.0
+  crop_pad_y_ratio: 0.0
+output:
+  directory: outputs
+  save_images: true
+  save_video: true

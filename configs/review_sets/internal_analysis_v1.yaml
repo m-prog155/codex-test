@@ -1,0 +1,12 @@
+dataset_root: /root/autodl-tmp/datasets/ccpd_yolo_mvp/images/test
+samples:
+  - category: db
+    relative_path: ccpd_db__0549-5_4-198&459_508&607-508&579_199&607_198&487_507&459-0_0_4_26_30_26_33-29-2.jpg
+  - category: blur
+    relative_path: ccpd_blur__0022-0_4-337&385_411&410-411&410_339&410_337&385_409&385-0_0_13_24_9_31_30-74-6.jpg
+  - category: tilt
+    relative_path: ccpd_tilt__0146-18_28-295&519_414&622-403&585_295&622_306&556_414&519-0_0_11_7_25_31_29-108-43.jpg
+  - category: fn
+    relative_path: ccpd_fn__0023-0_5-350&498_423&525-420&525_350&524_353&498_423&499-0_0_21_24_9_25_32-88-9.jpg
+  - category: challenge
+    relative_path: ccpd_challenge__0018-0_7-339&483_411&505-411&505_342&505_339&483_408&483-0_0_16_9_27_27_27-82-8.jpg

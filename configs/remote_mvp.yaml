@@ -1,0 +1,21 @@
+app_name: vehicle-license-plate-system-remote-mvp
+vehicle_detector:
+  model_path: yolo26n.pt
+  confidence: 0.35
+  labels:
+    - car
+    - bus
+    - truck
+    - motorcycle
+plate_detector:
+  model_path: /root/autodl-tmp/car-project/runs/plate_detector/ccpd_yolo26n_mvp/weights/best.pt
+  confidence: 0.25
+  labels:
+    - plate
+ocr:
+  language: ch
+  use_angle_cls: false
+output:
+  directory: /root/autodl-tmp/car-project/outputs
+  save_images: true
+  save_video: true
