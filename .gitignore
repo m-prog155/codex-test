@@ -41,14 +41,10 @@ data/processed/
 *.part08
 *.part09
 
-# Thesis and preview binaries
-docs/**/*.docx
-docs/**/*.odt
-docs/**/*.pdf
-docs/**/*.png
-docs/**/*.jpg
-docs/**/*.jpeg
-docs/thesis-draft-test-unzip/
+# Non-code local artifacts
+*.docx
+*.odt
+*.pdf
 
 # OS/editor noise
 Thumbs.db
