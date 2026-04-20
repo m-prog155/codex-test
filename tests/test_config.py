@@ -135,6 +135,41 @@ def test_load_config_reads_safe_rectification_mode_and_thresholds(tmp_path: Path
     assert config.ocr.safe_rect_max_center_offset == 0.28
 
 
+def test_load_config_reads_probe_ocr_settings(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        yaml.safe_dump(
+            {
+                "ocr": {
+                    "language": "ch",
+                    "use_angle_cls": False,
+                    "mode": "specialized",
+                    "model_dir": "weights/plate_rec/inference",
+                    "character_dict_path": "weights/plate_rec/dicts/plate_dict.txt",
+                    "min_confidence": 0.89,
+                    "probe": {
+                        "enabled": True,
+                        "model_dir": "weights/plate_rec_probe/inference",
+                        "character_dict_path": "weights/plate_rec_probe/dicts/plate_dict.txt",
+                        "min_confidence": 0.95,
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+
+    assert config.ocr.probe.enabled is True
+    assert config.ocr.probe.language == "ch"
+    assert config.ocr.probe.use_angle_cls is False
+    assert config.ocr.probe.mode == "specialized"
+    assert config.ocr.probe.model_dir == "weights/plate_rec_probe/inference"
+    assert config.ocr.probe.character_dict_path == "weights/plate_rec_probe/dicts/plate_dict.txt"
+    assert config.ocr.probe.min_confidence == 0.95
+
+
 def test_load_config_defaults_safe_rectification_to_disabled_mode(tmp_path: Path) -> None:
     config_path = tmp_path / "config.yaml"
     config_path.write_text("ocr:\n  language: ch\n  use_angle_cls: false\n", encoding="utf-8")

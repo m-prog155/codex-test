@@ -22,6 +22,7 @@ def process_image_file(
     plate_detector: Any,
     ocr_engine: Any,
     source_path: str | Path,
+    probe_ocr_engine: Any | None = None,
     output_dir: str | Path | None = None,
 ) -> dict[str, object]:
     source = Path(source_path)
@@ -32,6 +33,7 @@ def process_image_file(
         vehicle_detector=vehicle_detector,
         plate_detector=plate_detector,
         ocr_engine=ocr_engine,
+        probe_ocr_engine=probe_ocr_engine,
     )
     result = runner.run_frame(image=image, source_name=source.name, frame_index=0)
     rendered = annotate_frame(image, result)
@@ -56,6 +58,7 @@ def process_video_file(
     plate_detector: Any,
     ocr_engine: Any,
     source_path: str | Path,
+    probe_ocr_engine: Any | None = None,
     output_dir: str | Path | None = None,
     fps: float = 10.0,
 ) -> dict[str, object]:
@@ -66,6 +69,7 @@ def process_video_file(
         vehicle_detector=vehicle_detector,
         plate_detector=plate_detector,
         ocr_engine=ocr_engine,
+        probe_ocr_engine=probe_ocr_engine,
     )
 
     results = []

@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import os
 from pathlib import Path
 from typing import Any
@@ -32,6 +32,18 @@ class OcrConfig:
     safe_rect_min_area_ratio: float = 0.12
     safe_rect_min_rectangularity: float = 0.70
     safe_rect_max_center_offset: float = 0.35
+    probe: "OcrProbeConfig" = field(default_factory=lambda: OcrProbeConfig(language="ch", use_angle_cls=False))
+
+
+@dataclass(slots=True)
+class OcrProbeConfig:
+    language: str = "ch"
+    use_angle_cls: bool = False
+    enabled: bool = False
+    mode: str | None = None
+    model_dir: str | None = None
+    character_dict_path: str | None = None
+    min_confidence: float | None = None
 
 
 @dataclass(slots=True)
@@ -82,6 +94,7 @@ def load_config(path: str | Path) -> AppConfig:
         },
     )
     ocr_raw = raw.get("ocr", {})
+    probe_raw = ocr_raw.get("probe", {})
     output_raw = raw.get("output", {})
     vehicle_device_raw = vehicle_detector_raw.get("device")
     plate_device_raw = plate_detector_raw.get("device")
@@ -98,13 +111,18 @@ def load_config(path: str | Path) -> AppConfig:
         labels=list(plate_detector_raw.get("labels", [plate_detector_raw.get("plate_label", "plate")])),
         device=str(plate_device_raw) if plate_device_raw is not None else None,
     )
+    ocr_language = str(ocr_raw.get("language", "ch"))
+    ocr_use_angle_cls = bool(ocr_raw.get("use_angle_cls", False))
+    ocr_mode = str(ocr_raw.get("mode", "generic"))
+    ocr_min_confidence = float(ocr_raw.get("min_confidence", 0.0))
+
     ocr = OcrConfig(
-        language=str(ocr_raw.get("language", "ch")),
-        use_angle_cls=bool(ocr_raw.get("use_angle_cls", False)),
-        mode=str(ocr_raw.get("mode", "generic")),
+        language=ocr_language,
+        use_angle_cls=ocr_use_angle_cls,
+        mode=ocr_mode,
         model_dir=str(ocr_raw["model_dir"]) if ocr_raw.get("model_dir") else None,
         character_dict_path=str(ocr_raw["character_dict_path"]) if ocr_raw.get("character_dict_path") else None,
-        min_confidence=float(ocr_raw.get("min_confidence", 0.0)),
+        min_confidence=ocr_min_confidence,
         enable_rectification=bool(ocr_raw.get("enable_rectification", True)),
         rectification_mode=str(ocr_raw.get("rectification_mode", "disabled")),
         crop_pad_x_ratio=float(ocr_raw.get("crop_pad_x_ratio", 0.08)),
@@ -112,6 +130,17 @@ def load_config(path: str | Path) -> AppConfig:
         safe_rect_min_area_ratio=float(ocr_raw.get("safe_rect_min_area_ratio", 0.12)),
         safe_rect_min_rectangularity=float(ocr_raw.get("safe_rect_min_rectangularity", 0.70)),
         safe_rect_max_center_offset=float(ocr_raw.get("safe_rect_max_center_offset", 0.35)),
+        probe=OcrProbeConfig(
+            language=str(probe_raw.get("language", ocr_language)),
+            use_angle_cls=bool(probe_raw.get("use_angle_cls", ocr_use_angle_cls)),
+            enabled=bool(probe_raw.get("enabled", False)),
+            mode=str(probe_raw.get("mode", ocr_mode)),
+            model_dir=str(probe_raw["model_dir"]) if probe_raw.get("model_dir") else None,
+            character_dict_path=(
+                str(probe_raw["character_dict_path"]) if probe_raw.get("character_dict_path") else None
+            ),
+            min_confidence=float(probe_raw.get("min_confidence", ocr_min_confidence)),
+        ),
     )
     output = OutputConfig(
         directory=str(output_raw.get("directory", "outputs")),

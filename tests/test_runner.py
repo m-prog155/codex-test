@@ -347,3 +347,77 @@ def test_run_frame_safe_rectification_keeps_rectified_text_when_plain_is_null(mo
     assert result.matches[0].diagnostic is not None
     assert result.matches[0].diagnostic.rectification_reason == "applied"
     assert fake_ocr.shapes == [(48, 168, 3), (4, 11, 3)]
+
+
+def test_run_frame_nulls_primary_result_when_probe_disagrees() -> None:
+    class PrimaryOCR:
+        def recognize_raw(self, image):
+            return PlateRecognition(
+                text="皖A12345",
+                confidence=0.96,
+                raw_text="皖A12345",
+                normalized_text="皖A12345",
+            )
+
+    class ProbeOCR:
+        def recognize_raw(self, image):
+            return PlateRecognition(
+                text="皖A12346",
+                confidence=0.99,
+                raw_text="皖A12346",
+                normalized_text="皖A12346",
+            )
+
+    runner = PipelineRunner(
+        config=make_config(),
+        vehicle_detector=FakeVehicleDetector(),
+        plate_detector=FakePlateDetector(),
+        ocr_engine=PrimaryOCR(),
+        probe_ocr_engine=ProbeOCR(),
+    )
+    image = np.zeros((160, 160, 3), dtype=np.uint8)
+
+    result = runner.run_frame(image=image, source_name="frame.jpg", frame_index=0)
+
+    assert result.matches[0].recognition is None
+    assert result.matches[0].diagnostic is not None
+    assert result.matches[0].diagnostic.status == "ocr_probe_disagreement"
+    assert result.matches[0].diagnostic.raw_text == "皖A12345"
+    assert result.matches[0].diagnostic.normalized_text == "皖A12345"
+    assert result.matches[0].diagnostic.notes == ["probe_disagreement:皖A12346"]
+
+
+def test_run_frame_does_not_run_probe_when_primary_is_null() -> None:
+    class PrimaryNullOCR:
+        def recognize_raw(self, image):
+            return None
+
+    class ProbeOCR:
+        def __init__(self) -> None:
+            self.called = False
+
+        def recognize_raw(self, image):
+            self.called = True
+            return PlateRecognition(
+                text="皖A12345",
+                confidence=0.99,
+                raw_text="皖A12345",
+                normalized_text="皖A12345",
+            )
+
+    probe_ocr = ProbeOCR()
+    runner = PipelineRunner(
+        config=make_config(),
+        vehicle_detector=FakeVehicleDetector(),
+        plate_detector=FakePlateDetector(),
+        ocr_engine=PrimaryNullOCR(),
+        probe_ocr_engine=probe_ocr,
+    )
+    image = np.zeros((160, 160, 3), dtype=np.uint8)
+
+    result = runner.run_frame(image=image, source_name="frame.jpg", frame_index=0)
+
+    assert probe_ocr.called is False
+    assert result.matches[0].recognition is None
+    assert result.matches[0].diagnostic is not None
+    assert result.matches[0].diagnostic.status == "ocr_null"

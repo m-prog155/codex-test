@@ -1,4 +1,4 @@
-from car_system.config import AppConfig, DetectorConfig, OcrConfig, OutputConfig
+from car_system.config import AppConfig, DetectorConfig, OcrConfig, OcrProbeConfig, OutputConfig
 from car_system.runtime import build_runtime
 
 
@@ -19,11 +19,12 @@ def test_build_runtime_returns_vehicle_and_plate_detectors() -> None:
         output=OutputConfig(directory="outputs", save_images=True, save_video=True),
     )
 
-    vehicle_detector, plate_detector, ocr = build_runtime(config)
+    vehicle_detector, plate_detector, ocr, probe_ocr = build_runtime(config)
 
     assert vehicle_detector.__class__.__name__ == "YoloDetector"
     assert plate_detector.__class__.__name__ == "YoloDetector"
     assert ocr.__class__.__name__ == "PaddlePlateOCR"
+    assert probe_ocr is None
 
 
 def test_build_runtime_passes_detector_device_settings() -> None:
@@ -45,10 +46,11 @@ def test_build_runtime_passes_detector_device_settings() -> None:
         output=OutputConfig(directory="outputs", save_images=True, save_video=True),
     )
 
-    vehicle_detector, plate_detector, _ = build_runtime(config)
+    vehicle_detector, plate_detector, _, probe_ocr = build_runtime(config)
 
     assert vehicle_detector.device == "cpu"
     assert plate_detector.device == "cpu"
+    assert probe_ocr is None
 
 
 def test_build_runtime_passes_specialized_ocr_settings(monkeypatch) -> None:
@@ -56,7 +58,7 @@ def test_build_runtime_passes_specialized_ocr_settings(monkeypatch) -> None:
 
     class FakePaddlePlateOCR:
         def __init__(self, **kwargs):
-            captured["kwargs"] = kwargs
+            captured.setdefault("kwargs", []).append(kwargs)
 
     monkeypatch.setattr("car_system.runtime.PaddlePlateOCR", FakePaddlePlateOCR)
 
@@ -78,17 +80,35 @@ def test_build_runtime_passes_specialized_ocr_settings(monkeypatch) -> None:
             mode="specialized",
             model_dir="weights/plate_rec/inference",
             character_dict_path="weights/plate_rec/dicts/plate_dict.txt",
+            probe=OcrProbeConfig(
+                enabled=True,
+                model_dir="weights/plate_rec_probe/inference",
+                character_dict_path="weights/plate_rec_probe/dicts/plate_dict.txt",
+                min_confidence=0.95,
+            ),
         ),
         output=OutputConfig(directory="outputs", save_images=True, save_video=True),
     )
 
-    build_runtime(config)
+    _, _, ocr, probe_ocr = build_runtime(config)
 
-    assert captured["kwargs"] == {
-        "language": "ch",
-        "use_angle_cls": False,
-        "mode": "specialized",
-        "model_dir": "weights/plate_rec/inference",
-        "character_dict_path": "weights/plate_rec/dicts/plate_dict.txt",
-        "min_confidence": 0.0,
-    }
+    assert ocr.__class__.__name__ == "FakePaddlePlateOCR"
+    assert probe_ocr.__class__.__name__ == "FakePaddlePlateOCR"
+    assert captured["kwargs"] == [
+        {
+            "language": "ch",
+            "use_angle_cls": False,
+            "mode": "specialized",
+            "model_dir": "weights/plate_rec/inference",
+            "character_dict_path": "weights/plate_rec/dicts/plate_dict.txt",
+            "min_confidence": 0.0,
+        },
+        {
+            "language": "ch",
+            "use_angle_cls": False,
+            "mode": "specialized",
+            "model_dir": "weights/plate_rec_probe/inference",
+            "character_dict_path": "weights/plate_rec_probe/dicts/plate_dict.txt",
+            "min_confidence": 0.95,
+        },
+    ]
