@@ -421,3 +421,169 @@ def test_run_frame_does_not_run_probe_when_primary_is_null() -> None:
     assert result.matches[0].recognition is None
     assert result.matches[0].diagnostic is not None
     assert result.matches[0].diagnostic.status == "ocr_null"
+
+
+def test_run_frame_rescues_probe_result_when_primary_is_null_and_probe_is_confident() -> None:
+    config = make_config()
+    config.ocr.probe.enabled = True
+    config.ocr.probe.rescue_min_confidence = 0.99
+
+    class PrimaryNullOCR:
+        def recognize_raw(self, image):
+            return None
+
+    class ProbeOCR:
+        def recognize_raw(self, image):
+            return PlateRecognition(
+                text="皖A12345",
+                confidence=0.995,
+                raw_text="皖A12345",
+                normalized_text="皖A12345",
+            )
+
+    runner = PipelineRunner(
+        config=config,
+        vehicle_detector=FakeVehicleDetector(),
+        plate_detector=FakePlateDetector(),
+        ocr_engine=PrimaryNullOCR(),
+        probe_ocr_engine=ProbeOCR(),
+    )
+    image = np.zeros((160, 160, 3), dtype=np.uint8)
+
+    result = runner.run_frame(image=image, source_name="frame.jpg", frame_index=0)
+
+    assert result.matches[0].recognition is not None
+    assert result.matches[0].recognition.text == "皖A12345"
+    assert result.matches[0].diagnostic is not None
+    assert result.matches[0].diagnostic.status == "recognized"
+    assert result.matches[0].diagnostic.notes == ["probe_rescue:皖A12345"]
+
+
+def test_run_frame_keeps_primary_when_probe_disagrees_but_primary_is_clearly_stronger() -> None:
+    config = make_config()
+    config.ocr.probe.enabled = True
+    config.ocr.probe.disagreement_action = "keep_higher_confidence"
+    config.ocr.probe.disagreement_min_confidence = 0.95
+    config.ocr.probe.disagreement_min_gap = 0.08
+
+    class PrimaryOCR:
+        def recognize_raw(self, image):
+            return PlateRecognition(
+                text="皖A12345",
+                confidence=0.99,
+                raw_text="皖A12345",
+                normalized_text="皖A12345",
+            )
+
+    class ProbeOCR:
+        def recognize_raw(self, image):
+            return PlateRecognition(
+                text="皖A12346",
+                confidence=0.90,
+                raw_text="皖A12346",
+                normalized_text="皖A12346",
+            )
+
+    runner = PipelineRunner(
+        config=config,
+        vehicle_detector=FakeVehicleDetector(),
+        plate_detector=FakePlateDetector(),
+        ocr_engine=PrimaryOCR(),
+        probe_ocr_engine=ProbeOCR(),
+    )
+    image = np.zeros((160, 160, 3), dtype=np.uint8)
+
+    result = runner.run_frame(image=image, source_name="frame.jpg", frame_index=0)
+
+    assert result.matches[0].recognition is not None
+    assert result.matches[0].recognition.text == "皖A12345"
+    assert result.matches[0].diagnostic is not None
+    assert result.matches[0].diagnostic.status == "recognized"
+    assert result.matches[0].diagnostic.notes == ["probe_disagreement_primary_kept:皖A12346"]
+
+
+def test_run_frame_uses_probe_when_probe_is_clearly_stronger_on_disagreement() -> None:
+    config = make_config()
+    config.ocr.probe.enabled = True
+    config.ocr.probe.disagreement_action = "keep_higher_confidence"
+    config.ocr.probe.disagreement_min_confidence = 0.95
+    config.ocr.probe.disagreement_min_gap = 0.08
+
+    class PrimaryOCR:
+        def recognize_raw(self, image):
+            return PlateRecognition(
+                text="皖A12345",
+                confidence=0.90,
+                raw_text="皖A12345",
+                normalized_text="皖A12345",
+            )
+
+    class ProbeOCR:
+        def recognize_raw(self, image):
+            return PlateRecognition(
+                text="皖A12346",
+                confidence=0.99,
+                raw_text="皖A12346",
+                normalized_text="皖A12346",
+            )
+
+    runner = PipelineRunner(
+        config=config,
+        vehicle_detector=FakeVehicleDetector(),
+        plate_detector=FakePlateDetector(),
+        ocr_engine=PrimaryOCR(),
+        probe_ocr_engine=ProbeOCR(),
+    )
+    image = np.zeros((160, 160, 3), dtype=np.uint8)
+
+    result = runner.run_frame(image=image, source_name="frame.jpg", frame_index=0)
+
+    assert result.matches[0].recognition is not None
+    assert result.matches[0].recognition.text == "皖A12346"
+    assert result.matches[0].diagnostic is not None
+    assert result.matches[0].diagnostic.status == "recognized"
+    assert result.matches[0].diagnostic.raw_text == "皖A12346"
+    assert result.matches[0].diagnostic.notes == ["probe_override:皖A12345->皖A12346"]
+
+
+def test_run_frame_nulls_disagreement_when_confidence_gap_is_too_small_for_override() -> None:
+    config = make_config()
+    config.ocr.probe.enabled = True
+    config.ocr.probe.disagreement_action = "keep_higher_confidence"
+    config.ocr.probe.disagreement_min_confidence = 0.95
+    config.ocr.probe.disagreement_min_gap = 0.08
+
+    class PrimaryOCR:
+        def recognize_raw(self, image):
+            return PlateRecognition(
+                text="皖A12345",
+                confidence=0.96,
+                raw_text="皖A12345",
+                normalized_text="皖A12345",
+            )
+
+    class ProbeOCR:
+        def recognize_raw(self, image):
+            return PlateRecognition(
+                text="皖A12346",
+                confidence=0.97,
+                raw_text="皖A12346",
+                normalized_text="皖A12346",
+            )
+
+    runner = PipelineRunner(
+        config=config,
+        vehicle_detector=FakeVehicleDetector(),
+        plate_detector=FakePlateDetector(),
+        ocr_engine=PrimaryOCR(),
+        probe_ocr_engine=ProbeOCR(),
+    )
+    image = np.zeros((160, 160, 3), dtype=np.uint8)
+
+    result = runner.run_frame(image=image, source_name="frame.jpg", frame_index=0)
+
+    assert result.matches[0].recognition is None
+    assert result.matches[0].diagnostic is not None
+    assert result.matches[0].diagnostic.status == "ocr_probe_disagreement"
+    assert result.matches[0].diagnostic.raw_text == "皖A12345"
+    assert result.matches[0].diagnostic.notes == ["probe_disagreement_ambiguous:皖A12346"]

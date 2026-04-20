@@ -48,6 +48,12 @@ def _recognize(ocr_engine: Any, image: Any) -> PlateRecognition | None:
     return ocr_engine.recognize(image)
 
 
+def _recognition_text(recognition: PlateRecognition | None) -> str | None:
+    if recognition is None:
+        return None
+    return recognition.normalized_text or recognition.text
+
+
 class PipelineRunner:
     def __init__(
         self,
@@ -62,6 +68,54 @@ class PipelineRunner:
         self.plate_detector = plate_detector
         self.ocr_engine = ocr_engine
         self.probe_ocr_engine = probe_ocr_engine
+
+    def _apply_probe_policy(
+        self,
+        *,
+        primary_recognition: PlateRecognition | None,
+        probe_recognition: PlateRecognition | None,
+    ) -> tuple[PlateRecognition | None, str | None, list[str]]:
+        notes: list[str] = []
+        probe_config = self.config.ocr.probe
+        primary_text = _recognition_text(primary_recognition)
+        probe_text = _recognition_text(probe_recognition)
+
+        if primary_recognition is None:
+            if (
+                probe_recognition is not None
+                and probe_text
+                and probe_config.rescue_min_confidence is not None
+                and probe_recognition.confidence >= probe_config.rescue_min_confidence
+            ):
+                notes.append(f"probe_rescue:{probe_text}")
+                return probe_recognition, None, notes
+            return None, None, notes
+
+        if probe_recognition is None or not probe_text or not primary_text or primary_text == probe_text:
+            return primary_recognition, None, notes
+
+        if probe_config.disagreement_action == "keep_higher_confidence":
+            stronger = primary_recognition
+            stronger_text = primary_text
+            if probe_recognition.confidence > primary_recognition.confidence:
+                stronger = probe_recognition
+                stronger_text = probe_text
+
+            stronger_confidence = stronger.confidence
+            confidence_gap = abs(primary_recognition.confidence - probe_recognition.confidence)
+            min_confidence = probe_config.disagreement_min_confidence or 0.0
+            if stronger_confidence >= min_confidence and confidence_gap >= probe_config.disagreement_min_gap:
+                if stronger is primary_recognition:
+                    notes.append(f"probe_disagreement_primary_kept:{probe_text}")
+                else:
+                    notes.append(f"probe_override:{primary_text}->{stronger_text}")
+                return stronger, None, notes
+
+            notes.append(f"probe_disagreement_ambiguous:{probe_text}")
+            return None, "ocr_probe_disagreement", notes
+
+        notes.append(f"probe_disagreement:{probe_text}")
+        return None, "ocr_probe_disagreement", notes
 
     def run_frame(self, image: Any, source_name: str, frame_index: int = 0) -> FrameResult:
         vehicle_detections: list[Detection] = [
@@ -131,17 +185,24 @@ class PipelineRunner:
                 diagnostic_raw_text = raw_recognition.raw_text or raw_recognition.text
                 diagnostic_normalized_text = normalized_text
 
-            if self.probe_ocr_engine is not None and raw_recognition is not None:
-                probe_recognition = _recognize(self.probe_ocr_engine, recognition_input)
-                probe_text = None
-                if probe_recognition is not None:
-                    probe_text = probe_recognition.normalized_text or probe_recognition.text
-
-                if probe_text and normalized_text and probe_text != normalized_text:
-                    raw_recognition = None
-                    normalized_text = None
-                    diagnostic_status = "ocr_probe_disagreement"
-                    diagnostic_notes.append(f"probe_disagreement:{probe_text}")
+            if self.probe_ocr_engine is not None:
+                should_run_probe = raw_recognition is not None or self.config.ocr.probe.rescue_min_confidence is not None
+                if should_run_probe:
+                    probe_recognition = _recognize(self.probe_ocr_engine, recognition_input)
+                    raw_recognition, diagnostic_status, probe_notes = self._apply_probe_policy(
+                        primary_recognition=raw_recognition,
+                        probe_recognition=probe_recognition,
+                    )
+                    diagnostic_notes.extend(probe_notes)
+                    normalized_text = _recognition_text(raw_recognition)
+                    if (
+                        raw_recognition is not None
+                        and diagnostic_notes
+                        and any(note.startswith("probe_rescue:") or note.startswith("probe_override:") for note in diagnostic_notes)
+                    ):
+                        diagnostic_confidence = raw_recognition.confidence
+                        diagnostic_raw_text = raw_recognition.raw_text or raw_recognition.text
+                        diagnostic_normalized_text = normalized_text
 
             if raw_recognition is not None:
                 match.recognition = PlateRecognition(

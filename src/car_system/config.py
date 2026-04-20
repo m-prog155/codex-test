@@ -44,6 +44,10 @@ class OcrProbeConfig:
     model_dir: str | None = None
     character_dict_path: str | None = None
     min_confidence: float | None = None
+    disagreement_action: str = "veto"
+    disagreement_min_confidence: float | None = None
+    disagreement_min_gap: float = 0.0
+    rescue_min_confidence: float | None = None
 
 
 @dataclass(slots=True)
@@ -140,6 +144,18 @@ def load_config(path: str | Path) -> AppConfig:
                 str(probe_raw["character_dict_path"]) if probe_raw.get("character_dict_path") else None
             ),
             min_confidence=float(probe_raw.get("min_confidence", ocr_min_confidence)),
+            disagreement_action=str(probe_raw.get("disagreement_action", "veto")),
+            disagreement_min_confidence=(
+                float(probe_raw["disagreement_min_confidence"])
+                if probe_raw.get("disagreement_min_confidence") is not None
+                else None
+            ),
+            disagreement_min_gap=float(probe_raw.get("disagreement_min_gap", 0.0)),
+            rescue_min_confidence=(
+                float(probe_raw["rescue_min_confidence"])
+                if probe_raw.get("rescue_min_confidence") is not None
+                else None
+            ),
         ),
     )
     output = OutputConfig(

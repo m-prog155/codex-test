@@ -152,6 +152,10 @@ def test_load_config_reads_probe_ocr_settings(tmp_path: Path) -> None:
                         "model_dir": "weights/plate_rec_probe/inference",
                         "character_dict_path": "weights/plate_rec_probe/dicts/plate_dict.txt",
                         "min_confidence": 0.95,
+                        "disagreement_action": "keep_higher_confidence",
+                        "disagreement_min_confidence": 0.97,
+                        "disagreement_min_gap": 0.08,
+                        "rescue_min_confidence": 0.99,
                     },
                 }
             }
@@ -168,6 +172,10 @@ def test_load_config_reads_probe_ocr_settings(tmp_path: Path) -> None:
     assert config.ocr.probe.model_dir == "weights/plate_rec_probe/inference"
     assert config.ocr.probe.character_dict_path == "weights/plate_rec_probe/dicts/plate_dict.txt"
     assert config.ocr.probe.min_confidence == 0.95
+    assert config.ocr.probe.disagreement_action == "keep_higher_confidence"
+    assert config.ocr.probe.disagreement_min_confidence == 0.97
+    assert config.ocr.probe.disagreement_min_gap == 0.08
+    assert config.ocr.probe.rescue_min_confidence == 0.99
 
 
 def test_load_config_defaults_safe_rectification_to_disabled_mode(tmp_path: Path) -> None:
