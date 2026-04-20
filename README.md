@@ -103,6 +103,7 @@ Recommended setup:
 - `scripts/train_plate_ocr.py`: train the OCR recognizer
 - `scripts/evaluate_plate_ocr_model.py`: run OCR evaluation
 - `scripts/audit_pipeline_sample_list.py`: audit one config on a fixed sample-path list
+- `scripts/export_pipeline_hard_cases.py`: export fixed hard-case subsets from an audit rows.csv
 - `scripts/run_internal_review_set.py`: generate a fixed diagnostic review set
 - `scripts/build_internal_analysis_report.py`: build a local HTML review report
 

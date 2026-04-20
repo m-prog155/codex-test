@@ -1,4 +1,13 @@
-from car_system.experiments.pipeline_audit import build_sample_audit_summary, pick_best_recognized_match
+from pathlib import Path
+
+from car_system.experiments.pipeline_audit import (
+    build_hard_case_summary,
+    build_sample_audit_summary,
+    build_sample_path_list,
+    copy_audit_sample_images,
+    filter_audit_rows,
+    pick_best_recognized_match,
+)
 from car_system.types import Detection, PlateMatch, PlateRecognition
 
 
@@ -82,3 +91,110 @@ def test_build_sample_audit_summary_counts_statuses_and_confidence_distribution(
     assert summary["wrong"]["min_confidence"] == 0.95
     assert summary["null"]["count"] == 1
     assert summary["null"]["mean_confidence"] is None
+
+
+def test_filter_audit_rows_and_build_sample_path_list_select_requested_statuses() -> None:
+    rows = [
+        {
+            "relative_path": "test/exact.jpg",
+            "subset": "test",
+            "gt_text": "皖ANN665",
+            "predicted_text": "皖ANN665",
+            "status": "exact",
+            "confidence": 0.99,
+        },
+        {
+            "relative_path": "test/wrong.jpg",
+            "subset": "test",
+            "gt_text": "皖AB12Z9",
+            "predicted_text": "皖AB1279",
+            "status": "wrong",
+            "confidence": 0.96,
+        },
+        {
+            "relative_path": "test/null.jpg",
+            "subset": "test",
+            "gt_text": "皖AF3606",
+            "predicted_text": None,
+            "status": "null",
+            "confidence": None,
+        },
+    ]
+
+    selected = filter_audit_rows(rows, statuses=["wrong", "null"])
+
+    assert [row["relative_path"] for row in selected] == ["test/wrong.jpg", "test/null.jpg"]
+    assert build_sample_path_list(selected) == ["test/wrong.jpg", "test/null.jpg"]
+
+
+def test_build_hard_case_summary_reports_prefix_transitions_positions_and_confusions() -> None:
+    rows = [
+        {
+            "relative_path": "test/a.jpg",
+            "subset": "test",
+            "gt_text": "皖AB12Z9",
+            "predicted_text": "皖AB1279",
+            "status": "wrong",
+            "confidence": 0.97,
+        },
+        {
+            "relative_path": "test/b.jpg",
+            "subset": "test",
+            "gt_text": "晋LD0QB1",
+            "predicted_text": "皖A00Q81",
+            "status": "wrong",
+            "confidence": 0.95,
+        },
+        {
+            "relative_path": "test/c.jpg",
+            "subset": "test",
+            "gt_text": "皖AF3606",
+            "predicted_text": None,
+            "status": "null",
+            "confidence": None,
+        },
+    ]
+
+    summary = build_hard_case_summary(rows)
+
+    assert summary["sample_count"] == 3
+    assert summary["status_counts"] == {"wrong": 2, "null": 1}
+    assert summary["length_pairs"] == [{"gt_length": 7, "pred_length": 7, "count": 2}]
+    assert summary["prefix_transitions"] == [
+        {"gt_prefix": "晋L", "pred_prefix": "皖A", "count": 1},
+        {"gt_prefix": "皖A", "pred_prefix": "皖A", "count": 1},
+    ]
+    assert summary["mismatch_positions"] == [
+        {"position": 5, "count": 2},
+        {"position": 0, "count": 1},
+        {"position": 1, "count": 1},
+        {"position": 2, "count": 1},
+    ]
+    assert summary["character_confusions"][:4] == [
+        {"gt_char": "B", "pred_char": "8", "count": 1},
+        {"gt_char": "D", "pred_char": "0", "count": 1},
+        {"gt_char": "L", "pred_char": "A", "count": 1},
+        {"gt_char": "Z", "pred_char": "7", "count": 1},
+    ]
+
+
+def test_copy_audit_sample_images_preserves_relative_structure(tmp_path: Path) -> None:
+    dataset_root = tmp_path / "dataset"
+    source_file = dataset_root / "test" / "sample.jpg"
+    source_file.parent.mkdir(parents=True)
+    source_file.write_bytes(b"fake-image")
+    export_root = tmp_path / "export"
+
+    written = copy_audit_sample_images(
+        rows=[
+            {
+                "relative_path": "test/sample.jpg",
+                "status": "wrong",
+            }
+        ],
+        dataset_root=dataset_root,
+        export_root=export_root,
+    )
+
+    assert written == [export_root / "images" / "test" / "sample.jpg"]
+    assert (export_root / "images" / "test" / "sample.jpg").read_bytes() == b"fake-image"
