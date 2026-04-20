@@ -90,6 +90,10 @@ def test_train_plate_ocr_build_parser_uses_expected_defaults() -> None:
     assert args.paddleocr_root == Path("third_party/PaddleOCR")
     assert args.dataset_root == Path("outputs/plate_ocr_dataset")
     assert args.output_dir == Path("outputs/plate_ocr_runs/plate_specialized")
+    assert args.train_label_file is None
+    assert args.val_label_file is None
+    assert args.dict_path is None
+    assert args.epochs is None
     assert args.device == "gpu"
     assert args.dry_run is False
 
@@ -101,6 +105,10 @@ def test_train_plate_ocr_build_train_command_includes_key_paddleocr_overrides() 
         output_dir=Path("outputs/plate_ocr_runs/plate_specialized"),
         pretrained_model=Path("pretrained/ppocrv5_rec"),
         device="cpu",
+        train_label_file=None,
+        val_label_file=None,
+        dict_path=None,
+        epochs=None,
     )
 
     command_text = " ".join(command)
@@ -116,11 +124,33 @@ def test_train_plate_ocr_build_train_command_includes_key_paddleocr_overrides() 
     assert "Global.use_gpu=False" in command_text
 
 
+def test_train_plate_ocr_build_train_command_honors_custom_labels_dict_and_epochs() -> None:
+    command = train_script.build_train_command(
+        paddleocr_root=Path("third_party/PaddleOCR"),
+        dataset_root=Path("outputs/plate_ocr_dataset"),
+        output_dir=Path("outputs/plate_ocr_runs/plate_specialized_focus_v1"),
+        pretrained_model=Path("outputs/plate_ocr_runs/plate_specialized/best_accuracy"),
+        device="gpu",
+        train_label_file=Path("outputs/plate_ocr_focus_v1/train.txt"),
+        val_label_file=Path("outputs/plate_ocr_focus_v1/val.txt"),
+        dict_path=Path("outputs/plate_ocr_focus_v1/dicts/plate_dict.txt"),
+        epochs=12,
+    )
+
+    command_text = " ".join(command)
+    assert f"Global.character_dict_path={(train_script.PROJECT_ROOT / 'outputs/plate_ocr_focus_v1/dicts/plate_dict.txt').as_posix()}" in command_text
+    assert f"Train.dataset.label_file_list=['{(train_script.PROJECT_ROOT / 'outputs/plate_ocr_focus_v1/train.txt').as_posix()}']" in command_text
+    assert f"Eval.dataset.label_file_list=['{(train_script.PROJECT_ROOT / 'outputs/plate_ocr_focus_v1/val.txt').as_posix()}']" in command_text
+    assert "Global.use_gpu=True" in command_text
+    assert "Global.epoch_num=12" in command_text
+
+
 def test_train_plate_ocr_build_export_command_targets_inference_directory() -> None:
     command = train_script.build_export_command(
         paddleocr_root=Path("third_party/PaddleOCR"),
         dataset_root=Path("outputs/plate_ocr_dataset"),
         output_dir=Path("outputs/plate_ocr_runs/plate_specialized"),
+        dict_path=None,
     )
 
     command_text = " ".join(command)
@@ -129,6 +159,18 @@ def test_train_plate_ocr_build_export_command_targets_inference_directory() -> N
     assert f"Global.pretrained_model={(train_script.PROJECT_ROOT / 'outputs/plate_ocr_runs/plate_specialized/best_accuracy').as_posix()}" in command_text
     assert f"Global.save_inference_dir={(train_script.PROJECT_ROOT / 'outputs/plate_ocr_runs/plate_specialized/inference').as_posix()}" in command_text
     assert f"Global.character_dict_path={(train_script.PROJECT_ROOT / 'outputs/plate_ocr_dataset/dicts/plate_dict.txt').as_posix()}" in command_text
+
+
+def test_train_plate_ocr_build_export_command_honors_custom_dict_path() -> None:
+    command = train_script.build_export_command(
+        paddleocr_root=Path("third_party/PaddleOCR"),
+        dataset_root=Path("outputs/plate_ocr_dataset"),
+        output_dir=Path("outputs/plate_ocr_runs/plate_specialized_focus_v1"),
+        dict_path=Path("outputs/plate_ocr_focus_v1/dicts/plate_dict.txt"),
+    )
+
+    command_text = " ".join(command)
+    assert f"Global.character_dict_path={(train_script.PROJECT_ROOT / 'outputs/plate_ocr_focus_v1/dicts/plate_dict.txt').as_posix()}" in command_text
 
 
 def test_train_plate_ocr_main_dry_run_prints_train_and_export_commands(monkeypatch, capsys) -> None:
@@ -141,6 +183,10 @@ def test_train_plate_ocr_main_dry_run_prints_train_and_export_commands(monkeypat
                 dataset_root=Path("outputs/plate_ocr_dataset"),
                 output_dir=Path("outputs/plate_ocr_runs/plate_specialized"),
                 pretrained_model=Path("pretrained/ppocrv5_rec"),
+                train_label_file=None,
+                val_label_file=None,
+                dict_path=None,
+                epochs=None,
                 device="gpu",
                 dry_run=True,
             )
@@ -158,6 +204,7 @@ def test_train_plate_ocr_main_dry_run_prints_train_and_export_commands(monkeypat
 
 def test_train_plate_ocr_main_runs_train_and_export_with_stable_paths(monkeypatch) -> None:
     calls = []
+    output_dir = train_script.PROJECT_ROOT / "outputs/plate_ocr_runs/plate_specialized"
     monkeypatch.setattr(
         train_script,
         "build_parser",
@@ -165,8 +212,12 @@ def test_train_plate_ocr_main_runs_train_and_export_with_stable_paths(monkeypatc
             parse_args=lambda: Namespace(
                 paddleocr_root=Path("third_party/PaddleOCR"),
                 dataset_root=Path("outputs/plate_ocr_dataset"),
-                output_dir=Path("outputs/plate_ocr_runs/plate_specialized"),
+                output_dir=output_dir,
                 pretrained_model=Path("pretrained/ppocrv5_rec"),
+                train_label_file=None,
+                val_label_file=None,
+                dict_path=None,
+                epochs=None,
                 device="gpu",
                 dry_run=False,
             )
@@ -176,6 +227,11 @@ def test_train_plate_ocr_main_runs_train_and_export_with_stable_paths(monkeypatc
         train_script.subprocess,
         "run",
         lambda command, check, cwd: calls.append({"command": command, "check": check, "cwd": cwd}) or None,
+    )
+    monkeypatch.setattr(
+        train_script,
+        "resolve_export_checkpoint",
+        lambda path: train_script.PROJECT_ROOT / "outputs/plate_ocr_runs/plate_specialized/best_accuracy",
     )
 
     exit_code = train_script.main()
@@ -197,6 +253,47 @@ def test_train_plate_ocr_main_runs_train_and_export_with_stable_paths(monkeypatc
     assert Path(calls[1]["command"][5].split("=", 1)[1]).is_absolute()
     assert Path(calls[1]["command"][6].split("=", 1)[1]).is_absolute()
     assert Path(calls[1]["command"][7].split("=", 1)[1]).is_absolute()
+
+
+def test_train_plate_ocr_main_falls_back_to_latest_checkpoint_for_export(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    calls = []
+    output_dir = tmp_path / "plate_specialized_focus_v2_mild"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "latest.pdparams").write_text("weights", encoding="utf-8")
+
+    monkeypatch.setattr(
+        train_script,
+        "build_parser",
+        lambda: SimpleNamespace(
+            parse_args=lambda: Namespace(
+                paddleocr_root=Path("third_party/PaddleOCR"),
+                dataset_root=Path("outputs/plate_ocr_dataset"),
+                output_dir=output_dir,
+                pretrained_model=Path("pretrained/ppocrv5_rec"),
+                train_label_file=None,
+                val_label_file=None,
+                dict_path=None,
+                epochs=5,
+                device="gpu",
+                dry_run=False,
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        train_script.subprocess,
+        "run",
+        lambda command, check, cwd: calls.append({"command": command, "check": check, "cwd": cwd}) or None,
+    )
+
+    exit_code = train_script.main()
+
+    assert exit_code == 0
+    assert len(calls) == 2
+    assert calls[1]["command"][1] == "tools/export_model.py"
+    assert calls[1]["command"][5].endswith(f"{output_dir.as_posix()}/latest")
 
 
 def test_evaluate_plate_ocr_model_build_parser_uses_expected_defaults() -> None:

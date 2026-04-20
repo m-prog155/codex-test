@@ -24,6 +24,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--dataset-root", type=Path, default=DEFAULT_DATASET_ROOT)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--pretrained-model", type=Path, required=True)
+    parser.add_argument("--train-label-file", type=Path, default=None)
+    parser.add_argument("--val-label-file", type=Path, default=None)
+    parser.add_argument("--dict-path", type=Path, default=None)
+    parser.add_argument("--epochs", type=int, default=None)
     parser.add_argument("--device", choices=["cpu", "gpu"], default="gpu")
     parser.add_argument("--dry-run", action="store_true")
     return parser
@@ -43,17 +47,23 @@ def build_train_command(
     output_dir: Path,
     pretrained_model: Path,
     device: str,
+    train_label_file: Path | None,
+    val_label_file: Path | None,
+    dict_path: Path | None,
+    epochs: int | None,
 ) -> list[str]:
     train_script = Path("tools") / "train.py"
     config_path = DEFAULT_CONFIG_PATH
     dataset_root = _resolve_project_path(dataset_root)
     output_dir = _resolve_project_path(output_dir)
     pretrained_model = _resolve_project_path(pretrained_model)
-    dict_path = dataset_root / "dicts" / "plate_dict.txt"
-    train_label_file = dataset_root / "train.txt"
-    val_label_file = dataset_root / "val.txt"
+    dict_path = _resolve_project_path(dict_path) if dict_path is not None else dataset_root / "dicts" / "plate_dict.txt"
+    train_label_file = (
+        _resolve_project_path(train_label_file) if train_label_file is not None else dataset_root / "train.txt"
+    )
+    val_label_file = _resolve_project_path(val_label_file) if val_label_file is not None else dataset_root / "val.txt"
 
-    return [
+    command = [
         sys.executable,
         _to_shell_path(train_script),
         "-c",
@@ -68,14 +78,26 @@ def build_train_command(
         f"Eval.dataset.label_file_list=['{_to_shell_path(val_label_file)}']",
         f"Global.use_gpu={'True' if device == 'gpu' else 'False'}",
     ]
+    if epochs is not None:
+        command.append(f"Global.epoch_num={epochs}")
+    return command
 
 
-def build_export_command(paddleocr_root: Path, dataset_root: Path, output_dir: Path) -> list[str]:
+def build_export_command(
+    paddleocr_root: Path,
+    dataset_root: Path,
+    output_dir: Path,
+    dict_path: Path | None,
+    checkpoint_path: Path | None = None,
+) -> list[str]:
     export_script = Path("tools") / "export_model.py"
     config_path = DEFAULT_CONFIG_PATH
     dataset_root = _resolve_project_path(dataset_root)
     output_dir = _resolve_project_path(output_dir)
-    dict_path = dataset_root / "dicts" / "plate_dict.txt"
+    dict_path = _resolve_project_path(dict_path) if dict_path is not None else dataset_root / "dicts" / "plate_dict.txt"
+    checkpoint_path = (
+        _resolve_project_path(checkpoint_path) if checkpoint_path is not None else output_dir / "best_accuracy"
+    )
 
     return [
         sys.executable,
@@ -83,10 +105,24 @@ def build_export_command(paddleocr_root: Path, dataset_root: Path, output_dir: P
         "-c",
         _to_shell_path(config_path),
         "-o",
-        f"Global.pretrained_model={_to_shell_path(output_dir / 'best_accuracy')}",
+        f"Global.pretrained_model={_to_shell_path(checkpoint_path)}",
         f"Global.save_inference_dir={_to_shell_path(output_dir / 'inference')}",
         f"Global.character_dict_path={_to_shell_path(dict_path)}",
     ]
+
+
+def resolve_export_checkpoint(output_dir: Path) -> Path:
+    output_dir = _resolve_project_path(output_dir)
+    best_checkpoint = output_dir / "best_accuracy"
+    latest_checkpoint = output_dir / "latest"
+    if (best_checkpoint.with_suffix(".pdparams")).exists():
+        return best_checkpoint
+    if (latest_checkpoint.with_suffix(".pdparams")).exists():
+        return latest_checkpoint
+    raise FileNotFoundError(
+        f"No exportable checkpoint found under {output_dir}. "
+        "Expected best_accuracy.pdparams or latest.pdparams."
+    )
 
 
 def main() -> int:
@@ -97,8 +133,12 @@ def main() -> int:
         output_dir=args.output_dir,
         pretrained_model=args.pretrained_model,
         device=args.device,
+        train_label_file=args.train_label_file,
+        val_label_file=args.val_label_file,
+        dict_path=args.dict_path,
+        epochs=args.epochs,
     )
-    export_command = build_export_command(args.paddleocr_root, args.dataset_root, args.output_dir)
+    export_command = build_export_command(args.paddleocr_root, args.dataset_root, args.output_dir, args.dict_path)
 
     if args.dry_run:
         print("TRAIN:", " ".join(train_command))
@@ -106,6 +146,13 @@ def main() -> int:
         return 0
 
     subprocess.run(train_command, check=True, cwd=args.paddleocr_root)
+    export_command = build_export_command(
+        args.paddleocr_root,
+        args.dataset_root,
+        args.output_dir,
+        args.dict_path,
+        checkpoint_path=resolve_export_checkpoint(args.output_dir),
+    )
     subprocess.run(export_command, check=True, cwd=args.paddleocr_root)
     return 0
 
