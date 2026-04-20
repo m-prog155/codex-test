@@ -24,6 +24,15 @@ def pick_best_recognized_match(matches: list[PlateMatch]) -> PlateMatch | None:
     return recognized[0]
 
 
+def _subset_name(relative_path: str | Path) -> str:
+    path = Path(relative_path)
+    if not path.parts:
+        return ""
+    if len(path.parts) == 1:
+        return path.parent.as_posix()
+    return path.parts[0]
+
+
 def build_sample_audit_summary(rows: list[dict[str, Any]]) -> dict[str, object]:
     summary: dict[str, object] = {"sample_count": len(rows)}
 
@@ -44,6 +53,51 @@ def build_sample_audit_summary(rows: list[dict[str, Any]]) -> dict[str, object]:
         }
 
     return summary
+
+
+def build_sample_audit_row(
+    *,
+    relative_path: str | Path,
+    gt_text: str,
+    best_match: PlateMatch | None,
+) -> dict[str, Any]:
+    relative_path_obj = Path(relative_path)
+    if best_match is None or best_match.recognition is None or not best_match.recognition.text:
+        return {
+            "relative_path": relative_path_obj.as_posix(),
+            "subset": _subset_name(relative_path_obj),
+            "gt_text": gt_text,
+            "predicted_text": None,
+            "status": "null",
+            "confidence": None,
+            "raw_text": None,
+            "normalized_text": None,
+            "diagnostic_status": best_match.diagnostic.status if best_match and best_match.diagnostic else None,
+            "rectification_mode": best_match.diagnostic.rectification_mode if best_match and best_match.diagnostic else None,
+            "rectification_applied": (
+                best_match.diagnostic.rectification_applied if best_match and best_match.diagnostic else False
+            ),
+            "rectification_reason": (
+                best_match.diagnostic.rectification_reason if best_match and best_match.diagnostic else None
+            ),
+        }
+
+    predicted_text = best_match.recognition.text
+    diagnostic = best_match.diagnostic
+    return {
+        "relative_path": relative_path_obj.as_posix(),
+        "subset": _subset_name(relative_path_obj),
+        "gt_text": gt_text,
+        "predicted_text": predicted_text,
+        "status": "exact" if predicted_text == gt_text else "wrong",
+        "confidence": best_match.recognition.confidence,
+        "raw_text": best_match.recognition.raw_text,
+        "normalized_text": best_match.recognition.normalized_text,
+        "diagnostic_status": diagnostic.status if diagnostic else None,
+        "rectification_mode": diagnostic.rectification_mode if diagnostic else None,
+        "rectification_applied": diagnostic.rectification_applied if diagnostic else False,
+        "rectification_reason": diagnostic.rectification_reason if diagnostic else None,
+    }
 
 
 def filter_audit_rows(

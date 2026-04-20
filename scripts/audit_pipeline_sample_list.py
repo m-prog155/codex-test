@@ -13,7 +13,11 @@ if str(SRC_DIR) not in sys.path:
 
 from car_system.config import load_config, resolve_config_path
 from car_system.data.ccpd import decode_ccpd_plate_indices, parse_ccpd_path
-from car_system.experiments.pipeline_audit import build_sample_audit_summary, pick_best_recognized_match
+from car_system.experiments.pipeline_audit import (
+    build_sample_audit_row,
+    build_sample_audit_summary,
+    pick_best_recognized_match,
+)
 from car_system.io.media import load_image
 from car_system.io.writers import ensure_output_dir, write_csv, write_json
 from car_system.pipeline.runner import PipelineRunner
@@ -58,31 +62,7 @@ def main() -> int:
         image = load_image(dataset_root / relative_path)
         result = runner.run_frame(image=image, source_name=relative_path.name, frame_index=0)
         best_match = pick_best_recognized_match(result.matches)
-
-        if best_match is None or best_match.recognition is None or not best_match.recognition.text:
-            rows.append(
-                {
-                    "relative_path": relative_path.as_posix(),
-                    "subset": _subset_name(relative_path),
-                    "gt_text": gt_text,
-                    "predicted_text": None,
-                    "status": "null",
-                    "confidence": None,
-                }
-            )
-            continue
-
-        predicted_text = best_match.recognition.text
-        rows.append(
-            {
-                "relative_path": relative_path.as_posix(),
-                "subset": _subset_name(relative_path),
-                "gt_text": gt_text,
-                "predicted_text": predicted_text,
-                "status": "exact" if predicted_text == gt_text else "wrong",
-                "confidence": best_match.recognition.confidence,
-            }
-        )
+        rows.append(build_sample_audit_row(relative_path=relative_path, gt_text=gt_text, best_match=best_match))
 
     output_dir = ensure_output_dir(args.output_dir)
     write_csv(output_dir / "rows.csv", rows)

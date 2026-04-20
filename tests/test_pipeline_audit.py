@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from car_system.experiments.pipeline_audit import (
+    build_sample_audit_row,
     build_hard_case_summary,
     build_sample_audit_summary,
     build_sample_path_list,
@@ -8,7 +9,7 @@ from car_system.experiments.pipeline_audit import (
     filter_audit_rows,
     pick_best_recognized_match,
 )
-from car_system.types import Detection, PlateMatch, PlateRecognition
+from car_system.types import Detection, PlateDiagnostic, PlateMatch, PlateRecognition
 
 
 def test_pick_best_recognized_match_prefers_highest_ocr_confidence_then_plate_confidence() -> None:
@@ -198,3 +199,47 @@ def test_copy_audit_sample_images_preserves_relative_structure(tmp_path: Path) -
 
     assert written == [export_root / "images" / "test" / "sample.jpg"]
     assert (export_root / "images" / "test" / "sample.jpg").read_bytes() == b"fake-image"
+
+
+def test_build_sample_audit_row_includes_recognition_and_diagnostic_fields() -> None:
+    row = build_sample_audit_row(
+        relative_path=Path("test/sample.jpg"),
+        gt_text="皖A7Q653",
+        best_match=PlateMatch(
+            plate=Detection(label="plate", confidence=0.97, bbox=(10.0, 20.0, 110.0, 50.0)),
+            vehicle=None,
+            recognition=PlateRecognition(
+                text="皖A70653",
+                confidence=0.96,
+                raw_text="皖A70653",
+                normalized_text="皖A70653",
+            ),
+            diagnostic=PlateDiagnostic(
+                status="recognized",
+                crop_bbox=(8, 18, 112, 52),
+                crop_shape=(34, 104, 3),
+                rectified_shape=(34, 104, 3),
+                confidence=0.96,
+                raw_text="皖A70653",
+                normalized_text="皖A70653",
+                rectification_mode="safe",
+                rectification_applied=True,
+                rectification_reason="applied_disagreement_plain_used",
+            ),
+        ),
+    )
+
+    assert row == {
+        "relative_path": "test/sample.jpg",
+        "subset": "test",
+        "gt_text": "皖A7Q653",
+        "predicted_text": "皖A70653",
+        "status": "wrong",
+        "confidence": 0.96,
+        "raw_text": "皖A70653",
+        "normalized_text": "皖A70653",
+        "diagnostic_status": "recognized",
+        "rectification_mode": "safe",
+        "rectification_applied": True,
+        "rectification_reason": "applied_disagreement_plain_used",
+    }
