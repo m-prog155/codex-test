@@ -34,6 +34,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--guidance-subset-bonus", type=int, default=1)
     parser.add_argument("--guidance-char-bonus", type=int, default=1)
     parser.add_argument("--guidance-province-bonus", type=int, default=2)
+    parser.add_argument(
+        "--guidance-char-source",
+        choices=("both", "gt"),
+        default="both",
+        help="Whether transition guidance boosts both GT/predicted mismatched chars or GT chars only.",
+    )
     parser.add_argument("--max-multiplier", type=int, default=6)
     return parser
 
@@ -80,6 +86,7 @@ def derive_transition_guidance(
     rows: list[dict[str, str]],
     *,
     default_province: str = "皖",
+    guidance_char_source: str = "both",
 ) -> dict[str, tuple[str, ...]]:
     subsets: set[str] = set()
     targeted_chars: set[str] = set()
@@ -104,7 +111,7 @@ def derive_transition_guidance(
                 continue
             if gt_char.strip():
                 targeted_chars.add(gt_char)
-            if predicted_char.strip():
+            if guidance_char_source == "both" and predicted_char.strip():
                 targeted_chars.add(predicted_char)
 
     return {
@@ -214,7 +221,12 @@ def main() -> int:
     targeted_chars = tuple(char for char in args.targeted_chars if char.strip())
     guidance_paths = [Path(path) for path in getattr(args, "transition_guidance_csv", [])]
     guidance_rows = load_transition_guidance_rows(guidance_paths) if guidance_paths else []
-    guidance = derive_transition_guidance(guidance_rows, default_province=args.default_province)
+    guidance_char_source = getattr(args, "guidance_char_source", "both")
+    guidance = derive_transition_guidance(
+        guidance_rows,
+        default_province=args.default_province,
+        guidance_char_source=guidance_char_source,
+    )
 
     train_rows = parse_label_lines(dataset_root / "train.txt")
     focused_train_lines, summary = build_focused_train_lines(
@@ -262,6 +274,7 @@ def main() -> int:
                     "guidance_subset_bonus": getattr(args, "guidance_subset_bonus", 1),
                     "guidance_char_bonus": getattr(args, "guidance_char_bonus", 1),
                     "guidance_province_bonus": getattr(args, "guidance_province_bonus", 2),
+                    "guidance_char_source": guidance_char_source,
                 },
             },
             ensure_ascii=False,

@@ -20,6 +20,7 @@ def test_build_plate_ocr_focus_labels_build_parser_uses_expected_defaults() -> N
     assert args.guidance_subset_bonus == 1
     assert args.guidance_char_bonus == 1
     assert args.guidance_province_bonus == 2
+    assert args.guidance_char_source == "both"
     assert args.max_multiplier == 6
 
 
@@ -87,6 +88,31 @@ def test_load_transition_guidance_rows_and_derive_targets(tmp_path: Path) -> Non
     assert guidance == {
         "subsets": ("ccpd_challenge", "ccpd_tilt"),
         "targeted_chars": ("1", "8", "B", "T"),
+        "targeted_provinces": ("赣",),
+    }
+
+
+def test_derive_transition_guidance_can_limit_chars_to_ground_truth(tmp_path: Path) -> None:
+    guidance_csv = tmp_path / "combined_17.csv"
+    guidance_csv.write_text(
+        "\n".join(
+            [
+                "relative_path,gt_text,conditional_predicted_text,transition",
+                "test/ccpd_challenge__a.jpg,皖AM769T,皖AM7691,null->wrong",
+                "test/ccpd_tilt__b.jpg,赣MQ3976,皖MQ3976,null->wrong",
+                "test/ccpd_challenge__c.jpg,皖ABP993,皖A8P993,null->wrong",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    rows = focus_script.load_transition_guidance_rows([guidance_csv])
+    guidance = focus_script.derive_transition_guidance(rows, default_province="皖", guidance_char_source="gt")
+
+    assert guidance == {
+        "subsets": ("ccpd_challenge", "ccpd_tilt"),
+        "targeted_chars": ("B", "T"),
         "targeted_provinces": ("赣",),
     }
 
@@ -228,6 +254,7 @@ def test_build_plate_ocr_focus_labels_main_uses_transition_guidance_to_boost_mat
                 guidance_subset_bonus=2,
                 guidance_char_bonus=1,
                 guidance_province_bonus=3,
+                guidance_char_source="gt",
                 max_multiplier=10,
             )
         ),
@@ -250,9 +277,10 @@ def test_build_plate_ocr_focus_labels_main_uses_transition_guidance_to_boost_mat
     assert summary["guidance"] == {
         "transition_guidance_csv": [guidance_csv.as_posix()],
         "subsets": ["ccpd_challenge", "ccpd_tilt"],
-        "targeted_chars": ["8", "B"],
+        "targeted_chars": ["B"],
         "targeted_provinces": ["赣"],
         "guidance_subset_bonus": 2,
         "guidance_char_bonus": 1,
         "guidance_province_bonus": 3,
+        "guidance_char_source": "gt",
     }
