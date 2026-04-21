@@ -82,6 +82,14 @@ def _infer_guidance_subset(relative_path: str) -> str:
     return ""
 
 
+def _guidance_predicted_text(row: dict[str, str]) -> str:
+    for key in ("conditional_predicted_text", "guided_predicted_text", "predicted_text", "base_predicted_text"):
+        value = row.get(key, "")
+        if value:
+            return value
+    return ""
+
+
 def derive_transition_guidance(
     rows: list[dict[str, str]],
     *,
@@ -98,7 +106,7 @@ def derive_transition_guidance(
             subsets.add(subset)
 
         gt_text = row.get("gt_text", "")
-        predicted_text = row.get("conditional_predicted_text", "") or row.get("predicted_text", "")
+        predicted_text = _guidance_predicted_text(row)
 
         if gt_text and gt_text[0] != default_province:
             targeted_provinces.add(gt_text[0])

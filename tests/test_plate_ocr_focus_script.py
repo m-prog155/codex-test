@@ -117,6 +117,24 @@ def test_derive_transition_guidance_can_limit_chars_to_ground_truth(tmp_path: Pa
     }
 
 
+def test_derive_transition_guidance_accepts_guided_predicted_text_column() -> None:
+    rows = [
+        {
+            "relative_path": "test/ccpd_db__x.jpg",
+            "gt_text": "皖ASD006",
+            "guided_predicted_text": "皖AS0006",
+        }
+    ]
+
+    guidance = focus_script.derive_transition_guidance(rows, default_province="皖", guidance_char_source="gt")
+
+    assert guidance == {
+        "subsets": ("ccpd_db",),
+        "targeted_chars": ("D",),
+        "targeted_provinces": (),
+    }
+
+
 def test_build_focus_multiplier_applies_transition_guidance_bonuses() -> None:
     multiplier = focus_script.build_focus_multiplier(
         text="赣ABP991",
