@@ -72,12 +72,31 @@ class PipelineRunner:
         self.rescue_probe_ocr_engine = rescue_probe_ocr_engine
 
     @staticmethod
-    def _rescue_probe_matches_char_gate(text: str | None, required_chars: tuple[str, ...]) -> bool:
+    def _rescue_probe_matches_char_gate(
+        text: str | None,
+        required_chars: tuple[str, ...],
+        *,
+        require_alpha_count: int | None = None,
+        reject_repeated_required_char: bool = False,
+    ) -> bool:
         if not text:
             return False
+        suffix = text[2:]
         if not required_chars:
-            return True
-        return any(char in text[2:] for char in required_chars)
+            matched = True
+        else:
+            matched = any(char in suffix for char in required_chars)
+        if not matched:
+            return False
+        if require_alpha_count is not None:
+            alpha_count = sum(1 for char in suffix if char.isascii() and char.isalpha())
+            if alpha_count != require_alpha_count:
+                return False
+        if reject_repeated_required_char:
+            for char in required_chars:
+                if suffix.count(char) > 1:
+                    return False
+        return True
 
     def _apply_probe_policy(
         self,
@@ -220,6 +239,8 @@ class PipelineRunner:
                 if rescue_probe_recognition is not None and self._rescue_probe_matches_char_gate(
                     rescue_probe_text,
                     self.config.ocr.rescue_probe.rescue_requires_any_char,
+                    require_alpha_count=self.config.ocr.rescue_probe.rescue_require_alpha_count,
+                    reject_repeated_required_char=self.config.ocr.rescue_probe.rescue_reject_repeated_required_char,
                 ):
                     raw_recognition = rescue_probe_recognition
                     normalized_text = rescue_probe_text

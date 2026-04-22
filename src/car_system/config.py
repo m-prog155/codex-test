@@ -52,6 +52,8 @@ class OcrProbeConfig:
     disagreement_min_gap: float = 0.0
     rescue_min_confidence: float | None = None
     rescue_requires_any_char: tuple[str, ...] = ()
+    rescue_require_alpha_count: int | None = None
+    rescue_reject_repeated_required_char: bool = False
 
 
 @dataclass(slots=True)
@@ -190,6 +192,14 @@ def load_config(path: str | Path) -> AppConfig:
             ),
             min_confidence=float(rescue_probe_raw.get("min_confidence", ocr_min_confidence)),
             rescue_requires_any_char=_parse_probe_char_tuple(rescue_probe_raw.get("rescue_requires_any_char")),
+            rescue_require_alpha_count=(
+                int(rescue_probe_raw["rescue_require_alpha_count"])
+                if rescue_probe_raw.get("rescue_require_alpha_count") is not None
+                else None
+            ),
+            rescue_reject_repeated_required_char=bool(
+                rescue_probe_raw.get("rescue_reject_repeated_required_char", False)
+            ),
         ),
     )
     output = OutputConfig(

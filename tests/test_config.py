@@ -195,6 +195,8 @@ def test_load_config_reads_rescue_probe_settings(tmp_path: Path) -> None:
                         "character_dict_path": "weights/plate_rec_rescue/dicts/plate_dict.txt",
                         "min_confidence": 0.90,
                         "rescue_requires_any_char": ["D", "T", "Z"],
+                        "rescue_require_alpha_count": 2,
+                        "rescue_reject_repeated_required_char": True,
                     },
                 }
             }
@@ -209,6 +211,8 @@ def test_load_config_reads_rescue_probe_settings(tmp_path: Path) -> None:
     assert config.ocr.rescue_probe.character_dict_path == "weights/plate_rec_rescue/dicts/plate_dict.txt"
     assert config.ocr.rescue_probe.min_confidence == 0.90
     assert config.ocr.rescue_probe.rescue_requires_any_char == ("D", "T", "Z")
+    assert config.ocr.rescue_probe.rescue_require_alpha_count == 2
+    assert config.ocr.rescue_probe.rescue_reject_repeated_required_char is True
 
 
 def test_load_config_defaults_safe_rectification_to_disabled_mode(tmp_path: Path) -> None:
