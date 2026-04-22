@@ -23,6 +23,7 @@ class OcrConfig:
     use_angle_cls: bool
     mode: str = "generic"
     model_dir: str | None = None
+    model_name: str | None = None
     character_dict_path: str | None = None
     min_confidence: float = 0.0
     enable_rectification: bool = True
@@ -48,6 +49,7 @@ class OcrProbeConfig:
     enabled: bool = False
     mode: str | None = None
     model_dir: str | None = None
+    model_name: str | None = None
     character_dict_path: str | None = None
     min_confidence: float | None = None
     disagreement_action: str = "veto"
@@ -152,6 +154,7 @@ def load_config(path: str | Path) -> AppConfig:
         use_angle_cls=ocr_use_angle_cls,
         mode=ocr_mode,
         model_dir=str(ocr_raw["model_dir"]) if ocr_raw.get("model_dir") else None,
+        model_name=str(ocr_raw["model_name"]) if ocr_raw.get("model_name") else None,
         character_dict_path=str(ocr_raw["character_dict_path"]) if ocr_raw.get("character_dict_path") else None,
         min_confidence=ocr_min_confidence,
         enable_rectification=bool(ocr_raw.get("enable_rectification", True)),
@@ -167,6 +170,7 @@ def load_config(path: str | Path) -> AppConfig:
             enabled=bool(probe_raw.get("enabled", False)),
             mode=str(probe_raw.get("mode", ocr_mode)),
             model_dir=str(probe_raw["model_dir"]) if probe_raw.get("model_dir") else None,
+            model_name=str(probe_raw["model_name"]) if probe_raw.get("model_name") else None,
             character_dict_path=(
                 str(probe_raw["character_dict_path"]) if probe_raw.get("character_dict_path") else None
             ),
@@ -191,6 +195,7 @@ def load_config(path: str | Path) -> AppConfig:
             enabled=bool(rescue_probe_raw.get("enabled", False)),
             mode=str(rescue_probe_raw.get("mode", ocr_mode)),
             model_dir=str(rescue_probe_raw["model_dir"]) if rescue_probe_raw.get("model_dir") else None,
+            model_name=str(rescue_probe_raw["model_name"]) if rescue_probe_raw.get("model_name") else None,
             character_dict_path=(
                 str(rescue_probe_raw["character_dict_path"]) if rescue_probe_raw.get("character_dict_path") else None
             ),
@@ -213,6 +218,11 @@ def load_config(path: str | Path) -> AppConfig:
             model_dir=(
                 str(secondary_rescue_probe_raw["model_dir"])
                 if secondary_rescue_probe_raw.get("model_dir")
+                else None
+            ),
+            model_name=(
+                str(secondary_rescue_probe_raw["model_name"])
+                if secondary_rescue_probe_raw.get("model_name")
                 else None
             ),
             character_dict_path=(

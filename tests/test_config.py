@@ -67,6 +67,7 @@ def test_load_config_reads_specialized_ocr_settings(tmp_path: Path) -> None:
                     "use_angle_cls": False,
                     "mode": "specialized",
                     "model_dir": "weights/plate_rec/inference",
+                    "model_name": "PP-OCRv5_server_rec",
                     "character_dict_path": "weights/plate_rec/dicts/plate_dict.txt",
                 }
             }
@@ -80,6 +81,7 @@ def test_load_config_reads_specialized_ocr_settings(tmp_path: Path) -> None:
     assert config.ocr.use_angle_cls is False
     assert config.ocr.mode == "specialized"
     assert config.ocr.model_dir == "weights/plate_rec/inference"
+    assert config.ocr.model_name == "PP-OCRv5_server_rec"
     assert config.ocr.character_dict_path == "weights/plate_rec/dicts/plate_dict.txt"
     assert config.ocr.enable_rectification is True
     assert config.ocr.min_confidence == 0.0
@@ -150,6 +152,7 @@ def test_load_config_reads_probe_ocr_settings(tmp_path: Path) -> None:
                     "probe": {
                         "enabled": True,
                         "model_dir": "weights/plate_rec_probe/inference",
+                        "model_name": "PP-OCRv5_server_rec",
                         "character_dict_path": "weights/plate_rec_probe/dicts/plate_dict.txt",
                         "min_confidence": 0.95,
                         "disagreement_action": "keep_higher_confidence",
@@ -170,6 +173,7 @@ def test_load_config_reads_probe_ocr_settings(tmp_path: Path) -> None:
     assert config.ocr.probe.use_angle_cls is False
     assert config.ocr.probe.mode == "specialized"
     assert config.ocr.probe.model_dir == "weights/plate_rec_probe/inference"
+    assert config.ocr.probe.model_name == "PP-OCRv5_server_rec"
     assert config.ocr.probe.character_dict_path == "weights/plate_rec_probe/dicts/plate_dict.txt"
     assert config.ocr.probe.min_confidence == 0.95
     assert config.ocr.probe.disagreement_action == "keep_higher_confidence"

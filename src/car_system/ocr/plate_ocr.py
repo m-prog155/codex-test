@@ -13,6 +13,7 @@ class PaddlePlateOCR:
         use_angle_cls: bool = False,
         mode: str = "generic",
         model_dir: str | None = None,
+        model_name: str | None = None,
         character_dict_path: str | None = None,
         min_confidence: float = 0.0,
     ) -> None:
@@ -20,6 +21,7 @@ class PaddlePlateOCR:
         self.use_angle_cls = use_angle_cls
         self.mode = mode
         self.model_dir = model_dir
+        self.model_name = model_name
         self.character_dict_path = character_dict_path
         self.min_confidence = min_confidence
         self._ocr: Any | None = None
@@ -35,11 +37,21 @@ class PaddlePlateOCR:
 
         # Generic mode keeps the existing recognition-only default model path.
         # We already crop the plate region upstream, so it is more stable here.
-        kwargs: dict[str, str] = {"model_name": "PP-OCRv5_mobile_rec"}
         if self.mode == "specialized":
-            kwargs["model_dir"] = self.model_dir
+            if self.model_name:
+                self._ocr = TextRecognition(model_dir=self.model_dir, model_name=self.model_name)
+                return
 
-        self._ocr = TextRecognition(**kwargs)
+            try:
+                self._ocr = TextRecognition(model_dir=self.model_dir)
+                return
+            except AssertionError:
+                pass
+
+            self._ocr = TextRecognition(model_dir=self.model_dir, model_name="PP-OCRv5_mobile_rec")
+            return
+
+        self._ocr = TextRecognition(model_name=self.model_name or "PP-OCRv5_mobile_rec")
 
     def _normalize_plate_text(self, text: str) -> str:
         cleaned = "".join(char for char in text.upper() if char.isalnum())

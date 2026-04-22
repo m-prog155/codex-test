@@ -21,7 +21,9 @@ DEFAULT_CONFIG_PATH = Path("configs/rec/PP-OCRv5/PP-OCRv5_mobile_rec.yml")
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Train and export a plate-specialized PaddleOCR recognizer.")
     parser.add_argument("--paddleocr-root", type=Path, default=DEFAULT_PADDLEOCR_ROOT)
+    parser.add_argument("--config-path", type=Path, default=DEFAULT_CONFIG_PATH)
     parser.add_argument("--dataset-root", type=Path, default=DEFAULT_DATASET_ROOT)
+    parser.add_argument("--eval-dataset-root", type=Path, default=None)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--pretrained-model", type=Path, required=True)
     parser.add_argument("--train-label-file", type=Path, default=None)
@@ -51,17 +53,24 @@ def build_train_command(
     val_label_file: Path | None,
     dict_path: Path | None,
     epochs: int | None,
+    config_path: Path = DEFAULT_CONFIG_PATH,
+    eval_dataset_root: Path | None = None,
 ) -> list[str]:
     train_script = Path("tools") / "train.py"
-    config_path = DEFAULT_CONFIG_PATH
+    config_path = Path(config_path)
     dataset_root = _resolve_project_path(dataset_root)
+    eval_dataset_root = _resolve_project_path(eval_dataset_root) if eval_dataset_root is not None else dataset_root
     output_dir = _resolve_project_path(output_dir)
     pretrained_model = _resolve_project_path(pretrained_model)
     dict_path = _resolve_project_path(dict_path) if dict_path is not None else dataset_root / "dicts" / "plate_dict.txt"
     train_label_file = (
         _resolve_project_path(train_label_file) if train_label_file is not None else dataset_root / "train.txt"
     )
-    val_label_file = _resolve_project_path(val_label_file) if val_label_file is not None else dataset_root / "val.txt"
+    val_label_file = (
+        _resolve_project_path(val_label_file)
+        if val_label_file is not None
+        else eval_dataset_root / "val.txt"
+    )
 
     command = [
         sys.executable,
@@ -74,7 +83,7 @@ def build_train_command(
         f"Global.character_dict_path={_to_shell_path(dict_path)}",
         f"Train.dataset.data_dir={_to_shell_path(dataset_root)}",
         f"Train.dataset.label_file_list=['{_to_shell_path(train_label_file)}']",
-        f"Eval.dataset.data_dir={_to_shell_path(dataset_root)}",
+        f"Eval.dataset.data_dir={_to_shell_path(eval_dataset_root)}",
         f"Eval.dataset.label_file_list=['{_to_shell_path(val_label_file)}']",
         f"Global.use_gpu={'True' if device == 'gpu' else 'False'}",
     ]
@@ -89,9 +98,10 @@ def build_export_command(
     output_dir: Path,
     dict_path: Path | None,
     checkpoint_path: Path | None = None,
+    config_path: Path = DEFAULT_CONFIG_PATH,
 ) -> list[str]:
     export_script = Path("tools") / "export_model.py"
-    config_path = DEFAULT_CONFIG_PATH
+    config_path = Path(config_path)
     dataset_root = _resolve_project_path(dataset_root)
     output_dir = _resolve_project_path(output_dir)
     dict_path = _resolve_project_path(dict_path) if dict_path is not None else dataset_root / "dicts" / "plate_dict.txt"
@@ -127,9 +137,13 @@ def resolve_export_checkpoint(output_dir: Path) -> Path:
 
 def main() -> int:
     args = build_parser().parse_args()
+    config_path = getattr(args, "config_path", DEFAULT_CONFIG_PATH)
+    eval_dataset_root = getattr(args, "eval_dataset_root", None)
     train_command = build_train_command(
         paddleocr_root=args.paddleocr_root,
+        config_path=config_path,
         dataset_root=args.dataset_root,
+        eval_dataset_root=eval_dataset_root,
         output_dir=args.output_dir,
         pretrained_model=args.pretrained_model,
         device=args.device,
@@ -138,7 +152,13 @@ def main() -> int:
         dict_path=args.dict_path,
         epochs=args.epochs,
     )
-    export_command = build_export_command(args.paddleocr_root, args.dataset_root, args.output_dir, args.dict_path)
+    export_command = build_export_command(
+        paddleocr_root=args.paddleocr_root,
+        config_path=config_path,
+        dataset_root=args.dataset_root,
+        output_dir=args.output_dir,
+        dict_path=args.dict_path,
+    )
 
     if args.dry_run:
         print("TRAIN:", " ".join(train_command))
@@ -147,10 +167,11 @@ def main() -> int:
 
     subprocess.run(train_command, check=True, cwd=args.paddleocr_root)
     export_command = build_export_command(
-        args.paddleocr_root,
-        args.dataset_root,
-        args.output_dir,
-        args.dict_path,
+        paddleocr_root=args.paddleocr_root,
+        config_path=config_path,
+        dataset_root=args.dataset_root,
+        output_dir=args.output_dir,
+        dict_path=args.dict_path,
         checkpoint_path=resolve_export_checkpoint(args.output_dir),
     )
     subprocess.run(export_command, check=True, cwd=args.paddleocr_root)

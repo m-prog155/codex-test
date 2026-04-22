@@ -282,7 +282,6 @@ def test_load_specialized_passes_model_dir_and_omits_character_dict(monkeypatch)
     ocr.load()
 
     assert captured_kwargs == {
-        "model_name": "PP-OCRv5_mobile_rec",
         "model_dir": "D:/models/plate_recognition",
     }
     assert "character_dict_path" not in captured_kwargs
@@ -329,7 +328,55 @@ def test_recognize_auto_loads_specialized_model_and_returns_result(monkeypatch) 
     assert result.confidence == 0.93
     assert ocr._ocr is not None
     assert captured_kwargs == {
-        "model_name": "PP-OCRv5_mobile_rec",
         "model_dir": "D:/models/plate_recognition",
     }
     assert "character_dict_path" not in captured_kwargs
+
+
+def test_load_specialized_passes_explicit_model_name(monkeypatch) -> None:
+    captured_kwargs: dict[str, object] = {}
+
+    class FakeTextRecognition:
+        def __init__(self, **kwargs):
+            captured_kwargs.update(kwargs)
+
+    monkeypatch.setitem(sys.modules, "paddleocr", SimpleNamespace(TextRecognition=FakeTextRecognition))
+
+    ocr = PaddlePlateOCR(
+        language="ch",
+        use_angle_cls=False,
+        mode="specialized",
+        model_dir="D:/models/plate_recognition",
+        model_name="PP-OCRv5_server_rec",
+    )
+    ocr.load()
+
+    assert captured_kwargs == {
+        "model_dir": "D:/models/plate_recognition",
+        "model_name": "PP-OCRv5_server_rec",
+    }
+
+
+def test_load_specialized_falls_back_to_mobile_model_name_when_bare_model_dir_mismatches(monkeypatch) -> None:
+    captured_calls: list[dict[str, object]] = []
+
+    class FakeTextRecognition:
+        def __init__(self, **kwargs):
+            captured_calls.append(kwargs)
+            if kwargs == {"model_dir": "D:/models/plate_recognition"}:
+                raise AssertionError("Model name mismatch")
+
+    monkeypatch.setitem(sys.modules, "paddleocr", SimpleNamespace(TextRecognition=FakeTextRecognition))
+
+    ocr = PaddlePlateOCR(
+        language="ch",
+        use_angle_cls=False,
+        mode="specialized",
+        model_dir="D:/models/plate_recognition",
+    )
+    ocr.load()
+
+    assert captured_calls == [
+        {"model_dir": "D:/models/plate_recognition"},
+        {"model_dir": "D:/models/plate_recognition", "model_name": "PP-OCRv5_mobile_rec"},
+    ]

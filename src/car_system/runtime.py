@@ -3,12 +3,13 @@ from car_system.detectors.yolo_detector import YoloDetector
 from car_system.ocr.plate_ocr import PaddlePlateOCR
 
 
-def _build_ocr_engine(*, language, use_angle_cls, mode, model_dir, character_dict_path, min_confidence):
+def _build_ocr_engine(*, language, use_angle_cls, mode, model_dir, model_name, character_dict_path, min_confidence):
     return PaddlePlateOCR(
         language=language,
         use_angle_cls=use_angle_cls,
         mode=mode,
         model_dir=model_dir,
+        model_name=model_name,
         character_dict_path=character_dict_path,
         min_confidence=min_confidence,
     )
@@ -30,6 +31,7 @@ def build_runtime(config: AppConfig):
         use_angle_cls=config.ocr.use_angle_cls,
         mode=config.ocr.mode,
         model_dir=config.ocr.model_dir,
+        model_name=config.ocr.model_name,
         character_dict_path=config.ocr.character_dict_path,
         min_confidence=config.ocr.min_confidence,
     )
@@ -40,6 +42,7 @@ def build_runtime(config: AppConfig):
             use_angle_cls=config.ocr.probe.use_angle_cls,
             mode=config.ocr.probe.mode or config.ocr.mode,
             model_dir=config.ocr.probe.model_dir,
+            model_name=config.ocr.probe.model_name,
             character_dict_path=config.ocr.probe.character_dict_path,
             min_confidence=(
                 config.ocr.probe.min_confidence
@@ -54,6 +57,7 @@ def build_runtime(config: AppConfig):
             use_angle_cls=config.ocr.rescue_probe.use_angle_cls,
             mode=config.ocr.rescue_probe.mode or config.ocr.mode,
             model_dir=config.ocr.rescue_probe.model_dir,
+            model_name=config.ocr.rescue_probe.model_name,
             character_dict_path=config.ocr.rescue_probe.character_dict_path,
             min_confidence=(
                 config.ocr.rescue_probe.min_confidence
@@ -68,6 +72,7 @@ def build_runtime(config: AppConfig):
             use_angle_cls=config.ocr.secondary_rescue_probe.use_angle_cls,
             mode=config.ocr.secondary_rescue_probe.mode or config.ocr.mode,
             model_dir=config.ocr.secondary_rescue_probe.model_dir,
+            model_name=config.ocr.secondary_rescue_probe.model_name,
             character_dict_path=config.ocr.secondary_rescue_probe.character_dict_path,
             min_confidence=(
                 config.ocr.secondary_rescue_probe.min_confidence

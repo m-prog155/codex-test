@@ -1,0 +1,38 @@
+app_name: vehicle-license-plate-system-ppocrv5-server-primary-only-min095
+vehicle_detector:
+  model_path: yolo26n.pt
+  confidence: 0.35
+  device: cpu
+  labels:
+    - car
+    - bus
+    - truck
+    - motorcycle
+plate_detector:
+  model_path: /root/autodl-tmp/car-project/runs/plate_detector/ccpd_yolo26n_mvp/weights/best.pt
+  confidence: 0.25
+  device: cpu
+  labels:
+    - plate
+ocr:
+  language: ch
+  use_angle_cls: false
+  mode: specialized
+  model_dir: /root/autodl-tmp/car-project/outputs/plate_ocr_runs/plate_specialized_ppocrv5_server_holdout1500_e8/inference
+  model_name: PP-OCRv5_server_rec
+  character_dict_path: /root/autodl-tmp/car-project/outputs/plate_ocr_incremental_v2_server_holdout1500/dicts/plate_dict.txt
+  min_confidence: 0.95
+  enable_rectification: false
+  rectification_mode: disabled
+  crop_pad_x_ratio: 0.0
+  crop_pad_y_ratio: 0.0
+  probe:
+    enabled: false
+  rescue_probe:
+    enabled: false
+  secondary_rescue_probe:
+    enabled: false
+output:
+  directory: /root/autodl-tmp/car-project/outputs
+  save_images: true
+  save_video: true
