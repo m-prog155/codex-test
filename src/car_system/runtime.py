@@ -47,4 +47,18 @@ def build_runtime(config: AppConfig):
                 else config.ocr.min_confidence
             ),
         )
-    return vehicle_detector, plate_detector, ocr_engine, probe_ocr_engine
+    rescue_probe_ocr_engine = None
+    if config.ocr.rescue_probe.enabled:
+        rescue_probe_ocr_engine = _build_ocr_engine(
+            language=config.ocr.rescue_probe.language,
+            use_angle_cls=config.ocr.rescue_probe.use_angle_cls,
+            mode=config.ocr.rescue_probe.mode or config.ocr.mode,
+            model_dir=config.ocr.rescue_probe.model_dir,
+            character_dict_path=config.ocr.rescue_probe.character_dict_path,
+            min_confidence=(
+                config.ocr.rescue_probe.min_confidence
+                if config.ocr.rescue_probe.min_confidence is not None
+                else config.ocr.min_confidence
+            ),
+        )
+    return vehicle_detector, plate_detector, ocr_engine, probe_ocr_engine, rescue_probe_ocr_engine

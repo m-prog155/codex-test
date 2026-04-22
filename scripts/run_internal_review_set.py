@@ -26,9 +26,16 @@ def main() -> int:
     args = parser.parse_args()
 
     config = load_config(args.config)
-    vehicle_detector, plate_detector, ocr_engine, probe_ocr_engine = build_runtime(config)
+    vehicle_detector, plate_detector, ocr_engine, probe_ocr_engine, rescue_probe_ocr_engine = build_runtime(config)
     review_set = load_review_set(args.review_set)
-    runner = PipelineRunner(config, vehicle_detector, plate_detector, ocr_engine, probe_ocr_engine=probe_ocr_engine)
+    runner = PipelineRunner(
+        config,
+        vehicle_detector,
+        plate_detector,
+        ocr_engine,
+        probe_ocr_engine=probe_ocr_engine,
+        rescue_probe_ocr_engine=rescue_probe_ocr_engine,
+    )
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 

@@ -178,6 +178,39 @@ def test_load_config_reads_probe_ocr_settings(tmp_path: Path) -> None:
     assert config.ocr.probe.rescue_min_confidence == 0.99
 
 
+def test_load_config_reads_rescue_probe_settings(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        yaml.safe_dump(
+            {
+                "ocr": {
+                    "language": "ch",
+                    "use_angle_cls": False,
+                    "mode": "specialized",
+                    "model_dir": "weights/plate_rec/inference",
+                    "character_dict_path": "weights/plate_rec/dicts/plate_dict.txt",
+                    "rescue_probe": {
+                        "enabled": True,
+                        "model_dir": "weights/plate_rec_rescue/inference",
+                        "character_dict_path": "weights/plate_rec_rescue/dicts/plate_dict.txt",
+                        "min_confidence": 0.90,
+                        "rescue_requires_any_char": ["D", "T", "Z"],
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+
+    assert config.ocr.rescue_probe.enabled is True
+    assert config.ocr.rescue_probe.model_dir == "weights/plate_rec_rescue/inference"
+    assert config.ocr.rescue_probe.character_dict_path == "weights/plate_rec_rescue/dicts/plate_dict.txt"
+    assert config.ocr.rescue_probe.min_confidence == 0.90
+    assert config.ocr.rescue_probe.rescue_requires_any_char == ("D", "T", "Z")
+
+
 def test_load_config_defaults_safe_rectification_to_disabled_mode(tmp_path: Path) -> None:
     config_path = tmp_path / "config.yaml"
     config_path.write_text("ocr:\n  language: ch\n  use_angle_cls: false\n", encoding="utf-8")

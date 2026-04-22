@@ -33,6 +33,9 @@ class OcrConfig:
     safe_rect_min_rectangularity: float = 0.70
     safe_rect_max_center_offset: float = 0.35
     probe: "OcrProbeConfig" = field(default_factory=lambda: OcrProbeConfig(language="ch", use_angle_cls=False))
+    rescue_probe: "OcrProbeConfig" = field(
+        default_factory=lambda: OcrProbeConfig(language="ch", use_angle_cls=False)
+    )
 
 
 @dataclass(slots=True)
@@ -48,6 +51,7 @@ class OcrProbeConfig:
     disagreement_min_confidence: float | None = None
     disagreement_min_gap: float = 0.0
     rescue_min_confidence: float | None = None
+    rescue_requires_any_char: tuple[str, ...] = ()
 
 
 @dataclass(slots=True)
@@ -75,6 +79,22 @@ def _read_yaml(path: Path) -> dict[str, Any]:
     return data
 
 
+def _parse_probe_char_tuple(value: Any) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        return tuple(char for char in value if char.strip())
+    if isinstance(value, (list, tuple)):
+        chars: list[str] = []
+        for item in value:
+            text = str(item).strip()
+            if not text:
+                continue
+            chars.extend(char for char in text if char.strip())
+        return tuple(chars)
+    return tuple(char for char in str(value) if char.strip())
+
+
 def resolve_config_path(path: str | Path | None = None) -> Path:
     if path is not None:
         return Path(path)
@@ -99,6 +119,7 @@ def load_config(path: str | Path) -> AppConfig:
     )
     ocr_raw = raw.get("ocr", {})
     probe_raw = ocr_raw.get("probe", {})
+    rescue_probe_raw = ocr_raw.get("rescue_probe", {})
     output_raw = raw.get("output", {})
     vehicle_device_raw = vehicle_detector_raw.get("device")
     plate_device_raw = plate_detector_raw.get("device")
@@ -156,6 +177,19 @@ def load_config(path: str | Path) -> AppConfig:
                 if probe_raw.get("rescue_min_confidence") is not None
                 else None
             ),
+            rescue_requires_any_char=_parse_probe_char_tuple(probe_raw.get("rescue_requires_any_char")),
+        ),
+        rescue_probe=OcrProbeConfig(
+            language=str(rescue_probe_raw.get("language", ocr_language)),
+            use_angle_cls=bool(rescue_probe_raw.get("use_angle_cls", ocr_use_angle_cls)),
+            enabled=bool(rescue_probe_raw.get("enabled", False)),
+            mode=str(rescue_probe_raw.get("mode", ocr_mode)),
+            model_dir=str(rescue_probe_raw["model_dir"]) if rescue_probe_raw.get("model_dir") else None,
+            character_dict_path=(
+                str(rescue_probe_raw["character_dict_path"]) if rescue_probe_raw.get("character_dict_path") else None
+            ),
+            min_confidence=float(rescue_probe_raw.get("min_confidence", ocr_min_confidence)),
+            rescue_requires_any_char=_parse_probe_char_tuple(rescue_probe_raw.get("rescue_requires_any_char")),
         ),
     )
     output = OutputConfig(
