@@ -215,6 +215,41 @@ def test_load_config_reads_rescue_probe_settings(tmp_path: Path) -> None:
     assert config.ocr.rescue_probe.rescue_reject_repeated_required_char is True
 
 
+def test_load_config_reads_secondary_rescue_probe_settings(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        yaml.safe_dump(
+            {
+                "ocr": {
+                    "language": "ch",
+                    "use_angle_cls": False,
+                    "mode": "specialized",
+                    "model_dir": "weights/plate_rec/inference",
+                    "character_dict_path": "weights/plate_rec/dicts/plate_dict.txt",
+                    "secondary_rescue_probe": {
+                        "enabled": True,
+                        "model_dir": "weights/plate_rec_rescue_2/inference",
+                        "character_dict_path": "weights/plate_rec_rescue_2/dicts/plate_dict.txt",
+                        "min_confidence": 0.91,
+                        "rescue_requires_any_char": ["D", "T", "Z"],
+                        "rescue_require_alpha_count": 2,
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+
+    assert config.ocr.secondary_rescue_probe.enabled is True
+    assert config.ocr.secondary_rescue_probe.model_dir == "weights/plate_rec_rescue_2/inference"
+    assert config.ocr.secondary_rescue_probe.character_dict_path == "weights/plate_rec_rescue_2/dicts/plate_dict.txt"
+    assert config.ocr.secondary_rescue_probe.min_confidence == 0.91
+    assert config.ocr.secondary_rescue_probe.rescue_requires_any_char == ("D", "T", "Z")
+    assert config.ocr.secondary_rescue_probe.rescue_require_alpha_count == 2
+
+
 def test_load_config_defaults_safe_rectification_to_disabled_mode(tmp_path: Path) -> None:
     config_path = tmp_path / "config.yaml"
     config_path.write_text("ocr:\n  language: ch\n  use_angle_cls: false\n", encoding="utf-8")

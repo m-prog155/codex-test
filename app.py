@@ -26,13 +26,36 @@ st.write("Config file:", str(config_path))
 
 
 @st.cache_resource
-def get_runtime(config_file: str) -> tuple[object, object, object, object]:
+def get_runtime(config_file: str) -> tuple[object, object, object, object, object, object, object]:
     config = load_config(config_file)
-    vehicle_detector, plate_detector, ocr_engine = build_runtime(config)
-    return config, vehicle_detector, plate_detector, ocr_engine
+    (
+        vehicle_detector,
+        plate_detector,
+        ocr_engine,
+        probe_ocr_engine,
+        rescue_probe_ocr_engine,
+        secondary_rescue_probe_ocr_engine,
+    ) = build_runtime(config)
+    return (
+        config,
+        vehicle_detector,
+        plate_detector,
+        ocr_engine,
+        probe_ocr_engine,
+        rescue_probe_ocr_engine,
+        secondary_rescue_probe_ocr_engine,
+    )
 
 
-config, vehicle_detector, plate_detector, ocr_engine = get_runtime(str(config_path))
+(
+    config,
+    vehicle_detector,
+    plate_detector,
+    ocr_engine,
+    probe_ocr_engine,
+    rescue_probe_ocr_engine,
+    secondary_rescue_probe_ocr_engine,
+) = get_runtime(str(config_path))
 uploaded = st.file_uploader("Upload an image or video", type=["jpg", "jpeg", "png", "mp4", "avi", "mov"])
 
 if uploaded is not None:
@@ -50,6 +73,9 @@ if uploaded is not None:
                     vehicle_detector,
                     plate_detector,
                     ocr_engine,
+                    probe_ocr_engine=probe_ocr_engine,
+                    rescue_probe_ocr_engine=rescue_probe_ocr_engine,
+                    secondary_rescue_probe_ocr_engine=secondary_rescue_probe_ocr_engine,
                     source_path,
                     output_dir=output_dir,
                 )
@@ -63,6 +89,9 @@ if uploaded is not None:
                     vehicle_detector,
                     plate_detector,
                     ocr_engine,
+                    probe_ocr_engine=probe_ocr_engine,
+                    rescue_probe_ocr_engine=rescue_probe_ocr_engine,
+                    secondary_rescue_probe_ocr_engine=secondary_rescue_probe_ocr_engine,
                     source_path,
                     output_dir=output_dir,
                 )

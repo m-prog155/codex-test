@@ -50,7 +50,14 @@ def main() -> int:
     args = build_parser().parse_args()
 
     config = load_config(resolve_config_path(args.config))
-    vehicle_detector, plate_detector, ocr_engine, probe_ocr_engine, rescue_probe_ocr_engine = build_runtime(config)
+    (
+        vehicle_detector,
+        plate_detector,
+        ocr_engine,
+        probe_ocr_engine,
+        rescue_probe_ocr_engine,
+        secondary_rescue_probe_ocr_engine,
+    ) = build_runtime(config)
     runner = PipelineRunner(
         config,
         vehicle_detector,
@@ -58,6 +65,7 @@ def main() -> int:
         ocr_engine,
         probe_ocr_engine=probe_ocr_engine,
         rescue_probe_ocr_engine=rescue_probe_ocr_engine,
+        secondary_rescue_probe_ocr_engine=secondary_rescue_probe_ocr_engine,
     )
     dataset_root = Path(args.dataset_root)
     sample_paths = _load_sample_paths(args.sample_list)

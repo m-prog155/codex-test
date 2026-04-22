@@ -1,0 +1,69 @@
+app_name: vehicle-license-plate-system-remote-mvp-specialized-incremental-v1-control-min89-probe-legacy-plus-v3-then-v4
+vehicle_detector:
+  model_path: yolo26n.pt
+  confidence: 0.35
+  device: cpu
+  labels:
+    - car
+    - bus
+    - truck
+    - motorcycle
+plate_detector:
+  model_path: /root/autodl-tmp/car-project/runs/plate_detector/ccpd_yolo26n_mvp/weights/best.pt
+  confidence: 0.25
+  device: cpu
+  labels:
+    - plate
+ocr:
+  language: ch
+  use_angle_cls: false
+  mode: specialized
+  model_dir: /root/autodl-tmp/car-project/outputs/plate_ocr_runs/plate_specialized_incremental_v1/inference
+  character_dict_path: /root/autodl-tmp/car-project/outputs/plate_ocr_incremental_v1/dicts/plate_dict.txt
+  min_confidence: 0.89
+  enable_rectification: false
+  rectification_mode: disabled
+  crop_pad_x_ratio: 0.0
+  crop_pad_y_ratio: 0.0
+  probe:
+    enabled: true
+    language: ch
+    use_angle_cls: false
+    mode: specialized
+    model_dir: /root/autodl-tmp/car-project/outputs/plate_ocr_runs/plate_specialized/inference
+    character_dict_path: /root/autodl-tmp/car-project/outputs/plate_ocr_dataset/dicts/plate_dict.txt
+    min_confidence: 0.89
+    disagreement_action: keep_higher_confidence
+    disagreement_min_confidence: 0.95
+    disagreement_min_gap: 0.08
+    rescue_min_confidence: 0.99
+  rescue_probe:
+    enabled: true
+    language: ch
+    use_angle_cls: false
+    mode: specialized
+    model_dir: /root/autodl-tmp/car-project/outputs/plate_ocr_runs/plate_specialized_incremental_v1_focus_guided_v3_gt_e4/inference
+    character_dict_path: /root/autodl-tmp/car-project/outputs/plate_ocr_incremental_v1_focus_guided_v3_gt/dicts/plate_dict.txt
+    min_confidence: 0.90
+    rescue_requires_any_char:
+      - D
+      - T
+      - Z
+  secondary_rescue_probe:
+    enabled: true
+    language: ch
+    use_angle_cls: false
+    mode: specialized
+    model_dir: /root/autodl-tmp/car-project/outputs/plate_ocr_runs/plate_specialized_incremental_v1_focus_guided_v4_gt_mild_e4/inference
+    character_dict_path: /root/autodl-tmp/car-project/outputs/plate_ocr_incremental_v1_focus_guided_v4_gt_mild/dicts/plate_dict.txt
+    min_confidence: 0.90
+    rescue_requires_any_char:
+      - D
+      - T
+      - Z
+    rescue_require_alpha_count: 2
+    rescue_reject_repeated_required_char: true
+output:
+  directory: /root/autodl-tmp/car-project/outputs
+  save_images: true
+  save_video: true

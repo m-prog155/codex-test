@@ -63,6 +63,7 @@ class PipelineRunner:
         ocr_engine: Any,
         probe_ocr_engine: Any | None = None,
         rescue_probe_ocr_engine: Any | None = None,
+        secondary_rescue_probe_ocr_engine: Any | None = None,
     ) -> None:
         self.config = config
         self.vehicle_detector = vehicle_detector
@@ -70,6 +71,7 @@ class PipelineRunner:
         self.ocr_engine = ocr_engine
         self.probe_ocr_engine = probe_ocr_engine
         self.rescue_probe_ocr_engine = rescue_probe_ocr_engine
+        self.secondary_rescue_probe_ocr_engine = secondary_rescue_probe_ocr_engine
 
     @staticmethod
     def _rescue_probe_matches_char_gate(
@@ -97,6 +99,31 @@ class PipelineRunner:
                 if suffix.count(char) > 1:
                     return False
         return True
+
+    def _apply_rescue_probe(
+        self,
+        *,
+        recognition_input: Any,
+        rescue_engine: Any | None,
+        rescue_config: Any,
+        rescue_note_prefix: str,
+        diagnostic_notes: list[str],
+    ) -> PlateRecognition | None:
+        if rescue_engine is None:
+            return None
+        rescue_recognition = _recognize(rescue_engine, recognition_input)
+        rescue_text = _recognition_text(rescue_recognition)
+        if rescue_recognition is not None and self._rescue_probe_matches_char_gate(
+            rescue_text,
+            rescue_config.rescue_requires_any_char,
+            require_alpha_count=rescue_config.rescue_require_alpha_count,
+            reject_repeated_required_char=rescue_config.rescue_reject_repeated_required_char,
+        ):
+            diagnostic_notes.append(f"{rescue_note_prefix}_rescue:{rescue_text}")
+            return rescue_recognition
+        if rescue_text:
+            diagnostic_notes.append(f"{rescue_note_prefix}_rejected:{rescue_text}")
+        return None
 
     def _apply_probe_policy(
         self,
@@ -233,23 +260,27 @@ class PipelineRunner:
                         diagnostic_raw_text = raw_recognition.raw_text or raw_recognition.text
                         diagnostic_normalized_text = normalized_text
 
-            if raw_recognition is None and self.rescue_probe_ocr_engine is not None:
-                rescue_probe_recognition = _recognize(self.rescue_probe_ocr_engine, recognition_input)
-                rescue_probe_text = _recognition_text(rescue_probe_recognition)
-                if rescue_probe_recognition is not None and self._rescue_probe_matches_char_gate(
-                    rescue_probe_text,
-                    self.config.ocr.rescue_probe.rescue_requires_any_char,
-                    require_alpha_count=self.config.ocr.rescue_probe.rescue_require_alpha_count,
-                    reject_repeated_required_char=self.config.ocr.rescue_probe.rescue_reject_repeated_required_char,
-                ):
-                    raw_recognition = rescue_probe_recognition
-                    normalized_text = rescue_probe_text
-                    diagnostic_confidence = rescue_probe_recognition.confidence
-                    diagnostic_raw_text = rescue_probe_recognition.raw_text or rescue_probe_recognition.text
+            if raw_recognition is None:
+                raw_recognition = self._apply_rescue_probe(
+                    recognition_input=recognition_input,
+                    rescue_engine=self.rescue_probe_ocr_engine,
+                    rescue_config=self.config.ocr.rescue_probe,
+                    rescue_note_prefix="rescue_probe",
+                    diagnostic_notes=diagnostic_notes,
+                )
+                if raw_recognition is None:
+                    raw_recognition = self._apply_rescue_probe(
+                        recognition_input=recognition_input,
+                        rescue_engine=self.secondary_rescue_probe_ocr_engine,
+                        rescue_config=self.config.ocr.secondary_rescue_probe,
+                        rescue_note_prefix="secondary_rescue_probe",
+                        diagnostic_notes=diagnostic_notes,
+                    )
+                if raw_recognition is not None:
+                    normalized_text = _recognition_text(raw_recognition)
+                    diagnostic_confidence = raw_recognition.confidence
+                    diagnostic_raw_text = raw_recognition.raw_text or raw_recognition.text
                     diagnostic_normalized_text = normalized_text
-                    diagnostic_notes.append(f"rescue_probe_rescue:{rescue_probe_text}")
-                elif rescue_probe_text:
-                    diagnostic_notes.append(f"rescue_probe_rejected:{rescue_probe_text}")
 
             if raw_recognition is not None:
                 match.recognition = PlateRecognition(

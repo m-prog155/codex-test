@@ -36,6 +36,9 @@ class OcrConfig:
     rescue_probe: "OcrProbeConfig" = field(
         default_factory=lambda: OcrProbeConfig(language="ch", use_angle_cls=False)
     )
+    secondary_rescue_probe: "OcrProbeConfig" = field(
+        default_factory=lambda: OcrProbeConfig(language="ch", use_angle_cls=False)
+    )
 
 
 @dataclass(slots=True)
@@ -122,6 +125,7 @@ def load_config(path: str | Path) -> AppConfig:
     ocr_raw = raw.get("ocr", {})
     probe_raw = ocr_raw.get("probe", {})
     rescue_probe_raw = ocr_raw.get("rescue_probe", {})
+    secondary_rescue_probe_raw = ocr_raw.get("secondary_rescue_probe", {})
     output_raw = raw.get("output", {})
     vehicle_device_raw = vehicle_detector_raw.get("device")
     plate_device_raw = plate_detector_raw.get("device")
@@ -199,6 +203,34 @@ def load_config(path: str | Path) -> AppConfig:
             ),
             rescue_reject_repeated_required_char=bool(
                 rescue_probe_raw.get("rescue_reject_repeated_required_char", False)
+            ),
+        ),
+        secondary_rescue_probe=OcrProbeConfig(
+            language=str(secondary_rescue_probe_raw.get("language", ocr_language)),
+            use_angle_cls=bool(secondary_rescue_probe_raw.get("use_angle_cls", ocr_use_angle_cls)),
+            enabled=bool(secondary_rescue_probe_raw.get("enabled", False)),
+            mode=str(secondary_rescue_probe_raw.get("mode", ocr_mode)),
+            model_dir=(
+                str(secondary_rescue_probe_raw["model_dir"])
+                if secondary_rescue_probe_raw.get("model_dir")
+                else None
+            ),
+            character_dict_path=(
+                str(secondary_rescue_probe_raw["character_dict_path"])
+                if secondary_rescue_probe_raw.get("character_dict_path")
+                else None
+            ),
+            min_confidence=float(secondary_rescue_probe_raw.get("min_confidence", ocr_min_confidence)),
+            rescue_requires_any_char=_parse_probe_char_tuple(
+                secondary_rescue_probe_raw.get("rescue_requires_any_char")
+            ),
+            rescue_require_alpha_count=(
+                int(secondary_rescue_probe_raw["rescue_require_alpha_count"])
+                if secondary_rescue_probe_raw.get("rescue_require_alpha_count") is not None
+                else None
+            ),
+            rescue_reject_repeated_required_char=bool(
+                secondary_rescue_probe_raw.get("rescue_reject_repeated_required_char", False)
             ),
         ),
     )

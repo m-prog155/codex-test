@@ -25,7 +25,14 @@ def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
     config = load_config(resolve_config_path(args.config))
-    vehicle_detector, plate_detector, ocr_engine, probe_ocr_engine, rescue_probe_ocr_engine = build_runtime(config)
+    (
+        vehicle_detector,
+        plate_detector,
+        ocr_engine,
+        probe_ocr_engine,
+        rescue_probe_ocr_engine,
+        secondary_rescue_probe_ocr_engine,
+    ) = build_runtime(config)
     artifacts = process_image_file(
         config=config,
         vehicle_detector=vehicle_detector,
@@ -33,6 +40,7 @@ def main() -> int:
         ocr_engine=ocr_engine,
         probe_ocr_engine=probe_ocr_engine,
         rescue_probe_ocr_engine=rescue_probe_ocr_engine,
+        secondary_rescue_probe_ocr_engine=secondary_rescue_probe_ocr_engine,
         source_path=Path(args.source),
         output_dir=args.output_dir,
     )
