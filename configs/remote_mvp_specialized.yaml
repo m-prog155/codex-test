@@ -18,16 +18,20 @@ ocr:
   language: ch
   use_angle_cls: false
   mode: specialized
-  model_dir: /root/autodl-tmp/car-project/outputs/plate_ocr_runs/plate_specialized/inference
-  character_dict_path: /root/autodl-tmp/car-project/outputs/plate_ocr_dataset/dicts/plate_dict.txt
-  min_confidence: 0.93
-  enable_rectification: true
-  rectification_mode: safe
+  model_dir: /root/autodl-tmp/car-project/outputs/plate_ocr_runs/plate_specialized_ppocrv5_server_holdout1500_e8/inference
+  model_name: PP-OCRv5_server_rec
+  character_dict_path: /root/autodl-tmp/car-project/outputs/plate_ocr_incremental_v2_server_holdout1500/dicts/plate_dict.txt
+  min_confidence: 0.95
+  enable_rectification: false
+  rectification_mode: disabled
   crop_pad_x_ratio: 0.0
   crop_pad_y_ratio: 0.0
-  safe_rect_min_area_ratio: 0.12
-  safe_rect_min_rectangularity: 0.7
-  safe_rect_max_center_offset: 0.35
+  probe:
+    enabled: false
+  rescue_probe:
+    enabled: false
+  secondary_rescue_probe:
+    enabled: false
 output:
   directory: /root/autodl-tmp/car-project/outputs
   save_images: true
